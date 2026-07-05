@@ -1,0 +1,136 @@
+package com.adflow.core
+
+import android.app.Activity
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+
+@RunWith(RobolectricTestRunner::class)
+class FullScreenAdManagerBaseTest {
+
+    private val activity: Activity = Robolectric.buildActivity(Activity::class.java).get()
+
+    private class FakeManager(
+        config: PlacementConfig,
+        private val loadResults: MutableMap<String, Result<String>>,
+    ) : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+        var shownAd: String? = null
+
+        override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+            onResult(loadResults[adUnitId] ?: Result.failure(RuntimeException("no fill")))
+        }
+
+        override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+            shownAd = ad
+            callback.onAdShown()
+            callback.onAdDismissed()
+        }
+    }
+
+    @After
+    fun tearDown() {
+        AdFlowCore.reset()
+    }
+
+    @Test
+    fun `loads successfully on the first ad unit`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A", "B"))
+        val manager = FakeManager(config, mutableMapOf("A" to Result.success("ad-A")))
+        var result: AdLoadResult? = null
+        manager.load { result = it }
+        assertEquals(AdLoadResult.Success, result)
+        assertTrue(manager.isReady())
+    }
+
+    @Test
+    fun `falls through the waterfall then reports failure once retries are exhausted`() {
+        val fakeScheduler = mutableListOf<() -> Unit>()
+        val config = PlacementConfig(
+            placementId = "p1",
+            adUnitIds = listOf("A", "B"),
+            retryPolicy = RetryPolicy(initialDelayMs = 1, multiplier = 1.0, maxDelayMs = 1, maxRetries = 1),
+        )
+        val manager = FakeManager(config, mutableMapOf())
+        manager.scheduleRetry = { _, action -> fakeScheduler += action }
+
+        var result: AdLoadResult? = null
+        manager.load { result = it }
+        assertEquals(null, result) // still retrying, waiting on the scheduler
+        assertEquals(1, fakeScheduler.size)
+
+        fakeScheduler.removeAt(0).invoke() // run the retry synchronously
+        assertTrue(result is AdLoadResult.Failure)
+        assertFalse(manager.isReady())
+    }
+
+    @Test
+    fun `show is blocked when the placement is not ready`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val manager = FakeManager(config, mutableMapOf())
+        var blockedReason: BlockReason? = null
+        manager.show(activity, object : ShowCallback {
+            override fun onShowBlocked(reason: BlockReason) { blockedReason = reason }
+        })
+        assertEquals(BlockReason.NOT_READY, blockedReason)
+    }
+
+    @Test
+    fun `show is blocked by a rejecting showRule even when ready`() {
+        val config = PlacementConfig(
+            placementId = "p1",
+            adUnitIds = listOf("A"),
+            showRule = AdRule { false },
+        )
+        val manager = FakeManager(config, mutableMapOf("A" to Result.success("ad-A")))
+        manager.load {}
+        var blockedReason: BlockReason? = null
+        manager.show(activity, object : ShowCallback {
+            override fun onShowBlocked(reason: BlockReason) { blockedReason = reason }
+        })
+        assertEquals(BlockReason.RULE_REJECTED, blockedReason)
+        assertEquals(null, manager.shownAd)
+    }
+
+    @Test
+    fun `show is blocked when the show-interval has not elapsed`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val manager = FakeManager(config, mutableMapOf("A" to Result.success("ad-A")))
+        manager.nowProvider = { 0L }
+        manager.load {}
+        AdShowIntervalPolicy.recordShown(AdType.INTERSTITIAL, now = 0L)
+
+        var blockedReason: BlockReason? = null
+        manager.show(activity, object : ShowCallback {
+            override fun onShowBlocked(reason: BlockReason) { blockedReason = reason }
+        })
+        assertEquals(BlockReason.INTERVAL_NOT_ELAPSED, blockedReason)
+    }
+
+    @Test
+    fun `successful show consumes the cached ad and preloads again when enabled`() {
+        val config = PlacementConfig(
+            placementId = "p1",
+            adUnitIds = listOf("A"),
+            preloadEnabled = true,
+        )
+        var loadCount = 0
+        val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                loadCount += 1
+                onResult(Result.success("ad-$loadCount"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+                callback.onAdShown()
+            }
+        }
+        manager.load {}
+        assertEquals(1, loadCount)
+        manager.show(activity, ShowCallback.NONE)
+        assertEquals(2, loadCount) // preload triggered a second load
+    }
+}
