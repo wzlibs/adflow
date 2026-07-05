@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "AdFlow"
 include(":app")
+include(":adflow-core")
  
