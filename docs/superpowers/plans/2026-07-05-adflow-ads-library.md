@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- minSdk 24, compileSdk 36 (release channel, minorApiLevel 1), targetSdk 36 — match `app/build.gradle.kts`.
+- minSdk 24, compileSdk 37, targetSdk 36 — match `app/build.gradle.kts` (compileSdk was bumped from 36 to 37 before Task 1 to fix a pre-existing `androidx.core:core-ktx:1.19.0` AAR metadata baseline failure requiring compileSdk 37+; unrelated to this plan's scope but required for any build/test verification to run).
 - `:adflow-core` package `com.adflow.core`, must not depend on `play-services-ads` or any ad-network SDK.
 - `:adflow-admob` package `com.adflow.admob`, depends on `:adflow-core` + `play-services-ads` (+ Compose UI, since Compose wrappers live here per spec §7).
 - One `AdType` enum (`INTERSTITIAL, APP_OPEN, REWARDED, NATIVE, BANNER`) used everywhere — no second "full-screen only" enum.
@@ -63,9 +63,7 @@ plugins {
 android {
     namespace = "com.adflow.core"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
+        version = release(37)
     }
 
     defaultConfig {
@@ -162,9 +160,7 @@ plugins {
 android {
     namespace = "com.adflow.admob"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
+        version = release(37)
     }
 
     defaultConfig {
