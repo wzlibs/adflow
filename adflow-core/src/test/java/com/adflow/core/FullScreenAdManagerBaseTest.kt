@@ -34,8 +34,7 @@ class FullScreenAdManagerBaseTest {
 
     @After
     fun tearDown() {
-        AdFlowCore.reset()
-        AdShowIntervalPolicy.reset()
+        AdFlowCore.reset() // also resets AdShowIntervalPolicy internally
     }
 
     @Test
@@ -193,19 +192,24 @@ class FullScreenAdManagerBaseTest {
     fun `preload also triggers when the ad fails to show, not only on dismiss`() {
         val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"), preloadEnabled = true)
         var loadCount = 0
+        var deferredFail: (() -> Unit)? = null
         val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
             override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
                 loadCount += 1
                 onResult(Result.success("ad-$loadCount"))
             }
             override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
-                callback.onAdFailedToShow(AdFlowError(-1, "boom"))
+                deferredFail = { callback.onAdFailedToShow(AdFlowError(-1, "boom")) }
             }
         }
         manager.load {}
         assertEquals(1, loadCount)
+
         manager.show(activity, ShowCallback.NONE)
-        assertEquals(2, loadCount)
+        assertEquals(1, loadCount) // failure hasn't actually happened yet - no preload yet
+
+        deferredFail?.invoke()
+        assertEquals(2, loadCount) // preload triggered once the failure was actually reported
     }
 
     @Test
