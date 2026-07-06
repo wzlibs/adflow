@@ -2,6 +2,7 @@ package com.adflow.admob.nativead
 
 import android.content.Context
 import android.view.View
+import com.adflow.admob.precisionName
 import com.adflow.core.AdFlowCore
 import com.adflow.core.AdFlowError
 import com.adflow.core.AdLoadResult
@@ -11,23 +12,32 @@ import com.adflow.core.NativeAdAssets
 import com.adflow.core.NativeAdManager
 import com.adflow.core.NativeAdRenderer
 import com.adflow.core.PlacementConfig
-import com.adflow.core.WaterfallLoader
+import com.adflow.core.RetryingAdLoader
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.nativead.MediaView
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdView
 
-class AdMobNativeAdManager(
+open class AdMobNativeAdManager(
     private val context: Context,
     private val config: PlacementConfig,
 ) : NativeAdManager {
 
     private var cachedAd: NativeAd? = null
+    private var isLoading: Boolean = false
 
+    private val loader: RetryingAdLoader<NativeAd> =
+        RetryingAdLoader(config, AdType.NATIVE) { adUnitId, onResult -> requestAd(adUnitId, onResult) }
+
+    internal var scheduleRetry: (delayMs: Long, action: () -> Unit) -> Unit
+        get() = loader.scheduleRetry
+        set(value) { loader.scheduleRetry = value }
+
+    // Native ads are never subject to expiry (unlike full-screen/rewarded ads): readiness is a
+    // plain non-null check, per the AdFlow design constraint that only full-screen ad types stale.
     override fun isReady(): Boolean = cachedAd != null
 
     override fun load(onResult: (AdLoadResult) -> Unit) {
@@ -39,20 +49,18 @@ class AdMobNativeAdManager(
             onResult(AdLoadResult.Failure(AdFlowError(-2, "load rule rejected")))
             return
         }
-        WaterfallLoader<NativeAd>(config.adUnitIds) { adUnitId, cb -> requestAd(adUnitId, cb) }.start { result ->
-            result.fold(
-                onSuccess = {
-                    cachedAd = it
-                    onResult(AdLoadResult.Success)
-                },
-                onFailure = { error ->
-                    onResult(AdLoadResult.Failure(AdFlowError(-3, error.message ?: "no fill")))
-                },
-            )
+        if (isLoading) return
+        isLoading = true
+        loader.start { result, ad ->
+            if (result is AdLoadResult.Success && ad != null) {
+                cachedAd = ad
+            }
+            isLoading = false
+            onResult(result)
         }
     }
 
-    private fun requestAd(adUnitId: String, onResult: (Result<NativeAd>) -> Unit) {
+    internal open fun requestAd(adUnitId: String, onResult: (Result<NativeAd>) -> Unit) {
         val loader = AdLoader.Builder(context, adUnitId)
             .forNativeAd { nativeAd ->
                 nativeAd.setOnPaidEventListener { adValue ->
@@ -96,13 +104,5 @@ class AdMobNativeAdManager(
             view.setNativeAd(ad)
         }
         return view
-    }
-
-    private fun precisionName(@AdValue.PrecisionType precisionType: Int): String = when (precisionType) {
-        AdValue.PrecisionType.PRECISE -> "PRECISE"
-        AdValue.PrecisionType.ESTIMATED -> "ESTIMATED"
-        AdValue.PrecisionType.PUBLISHER_PROVIDED -> "PUBLISHER_PROVIDED"
-        AdValue.PrecisionType.UNKNOWN -> "UNKNOWN"
-        else -> "UNKNOWN"
     }
 }

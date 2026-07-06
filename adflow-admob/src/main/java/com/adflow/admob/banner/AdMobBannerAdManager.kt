@@ -2,6 +2,7 @@ package com.adflow.admob.banner
 
 import android.content.Context
 import android.view.View
+import com.adflow.admob.precisionName
 import com.adflow.core.AdFlowCore
 import com.adflow.core.AdFlowError
 import com.adflow.core.AdLoadResult
@@ -9,22 +10,31 @@ import com.adflow.core.AdRevenueEvent
 import com.adflow.core.AdType
 import com.adflow.core.BannerAdManager
 import com.adflow.core.PlacementConfig
-import com.adflow.core.WaterfallLoader
+import com.adflow.core.RetryingAdLoader
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
-import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.OnPaidEventListener
 
-class AdMobBannerAdManager(
+open class AdMobBannerAdManager(
     private val context: Context,
     private val config: PlacementConfig,
 ) : BannerAdManager {
 
     private var adView: AdView? = null
+    private var isLoading: Boolean = false
 
+    private val loader: RetryingAdLoader<AdView> =
+        RetryingAdLoader(config, AdType.BANNER) { adUnitId, onResult -> requestAd(adUnitId, onResult) }
+
+    internal var scheduleRetry: (delayMs: Long, action: () -> Unit) -> Unit
+        get() = loader.scheduleRetry
+        set(value) { loader.scheduleRetry = value }
+
+    // Banners are never subject to expiry (unlike full-screen/rewarded ads): readiness is a
+    // plain non-null check, per the AdFlow design constraint that only full-screen ad types stale.
     override fun isReady(): Boolean = adView != null
 
     override fun load(onResult: (AdLoadResult) -> Unit) {
@@ -36,20 +46,18 @@ class AdMobBannerAdManager(
             onResult(AdLoadResult.Failure(AdFlowError(-2, "load rule rejected")))
             return
         }
-        WaterfallLoader<AdView>(config.adUnitIds) { adUnitId, cb -> requestAd(adUnitId, cb) }.start { result ->
-            result.fold(
-                onSuccess = {
-                    adView = it
-                    onResult(AdLoadResult.Success)
-                },
-                onFailure = { error ->
-                    onResult(AdLoadResult.Failure(AdFlowError(-3, error.message ?: "no fill")))
-                },
-            )
+        if (isLoading) return
+        isLoading = true
+        loader.start { result, view ->
+            if (result is AdLoadResult.Success && view != null) {
+                adView = view
+            }
+            isLoading = false
+            onResult(result)
         }
     }
 
-    private fun requestAd(adUnitId: String, onResult: (Result<AdView>) -> Unit) {
+    internal open fun requestAd(adUnitId: String, onResult: (Result<AdView>) -> Unit) {
         val view = AdView(context)
         view.setAdSize(AdSize.BANNER)
         view.adUnitId = adUnitId
@@ -80,12 +88,4 @@ class AdMobBannerAdManager(
 
     override fun getView(context: Context): View =
         adView ?: throw IllegalStateException("Banner for '${config.placementId}' has not loaded yet")
-
-    private fun precisionName(@AdValue.PrecisionType precisionType: Int): String = when (precisionType) {
-        AdValue.PrecisionType.PRECISE -> "PRECISE"
-        AdValue.PrecisionType.ESTIMATED -> "ESTIMATED"
-        AdValue.PrecisionType.PUBLISHER_PROVIDED -> "PUBLISHER_PROVIDED"
-        AdValue.PrecisionType.UNKNOWN -> "UNKNOWN"
-        else -> "UNKNOWN"
-    }
 }
