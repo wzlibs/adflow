@@ -132,6 +132,29 @@ class FullScreenAdManagerBaseTest {
     }
 
     @Test
+    fun `show-interval cooldown is shared across different placements of the same ad type`() {
+        // The same-type gap is a single global clock per AdType, not scoped per placement -
+        // showing "splash_interstitial" must also block "global_interstitial" from showing right
+        // after, since both are still an INTERSTITIAL from the user's perspective.
+        val configA = PlacementConfig(placementId = "splash_interstitial", adUnitIds = listOf("A"))
+        val configB = PlacementConfig(placementId = "global_interstitial", adUnitIds = listOf("B"))
+        val managerA = FakeManager(configA, mutableMapOf("A" to Result.success("ad-A")))
+        val managerB = FakeManager(configB, mutableMapOf("B" to Result.success("ad-B")))
+        managerA.nowProvider = { 0L }
+        managerB.nowProvider = { 0L }
+        managerA.load {}
+        managerB.load {}
+
+        managerA.show(activity, ShowCallback.NONE)
+
+        var blockedReason: BlockReason? = null
+        managerB.show(activity, object : ShowCallback {
+            override fun onShowBlocked(reason: BlockReason) { blockedReason = reason }
+        })
+        assertEquals(BlockReason.INTERVAL_NOT_ELAPSED, blockedReason)
+    }
+
+    @Test
     fun `show on an expired ad drops the stale ad and triggers a fresh load instead of staying stuck`() {
         val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"), expiryMs = 1_000)
         var loadCount = 0

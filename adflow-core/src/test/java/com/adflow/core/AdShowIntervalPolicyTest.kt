@@ -13,7 +13,7 @@ class AdShowIntervalPolicyTest {
     }
 
     @Test
-    fun `same type must wait the configured gap`() {
+    fun `interstitial after interstitial uses the same-type gap, as one global clock`() {
         AdShowIntervalPolicy.configure(ShowIntervalConfig(interstitialAfterInterstitialMs = 5_000))
         AdShowIntervalPolicy.recordShown(AdType.INTERSTITIAL, now = 0L)
         assertFalse(AdShowIntervalPolicy.canShow(AdType.INTERSTITIAL, now = 4_999L))
@@ -26,6 +26,14 @@ class AdShowIntervalPolicyTest {
         AdShowIntervalPolicy.recordShown(AdType.APP_OPEN, now = 0L)
         assertFalse(AdShowIntervalPolicy.canShow(AdType.INTERSTITIAL, now = 2_999L))
         assertTrue(AdShowIntervalPolicy.canShow(AdType.INTERSTITIAL, now = 3_000L))
+    }
+
+    @Test
+    fun `app open after app open uses the same-type gap, as one global clock`() {
+        AdShowIntervalPolicy.configure(ShowIntervalConfig(appOpenAfterAppOpenMs = 4_000))
+        AdShowIntervalPolicy.recordShown(AdType.APP_OPEN, now = 0L)
+        assertFalse(AdShowIntervalPolicy.canShow(AdType.APP_OPEN, now = 3_999L))
+        assertTrue(AdShowIntervalPolicy.canShow(AdType.APP_OPEN, now = 4_000L))
     }
 
     @Test
