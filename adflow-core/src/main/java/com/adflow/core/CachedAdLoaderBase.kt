@@ -90,4 +90,33 @@ abstract class CachedAdLoaderBase<TAd : Any>(
     protected fun preloadIfEnabled() {
         if (config.preloadEnabled) load {}
     }
+
+    /**
+     * Checks and reports the two not-ready/showRule blocking conditions every `show()`
+     * implementation built on this base shares (interval-capping, where it applies, is each
+     * subclass's own concern - see [AdShowIntervalPolicy]). Drops a stale ad first, logs and
+     * notifies [callback] via [AdShowBlockedCallback.onShowBlocked] if blocked, and self-heals with
+     * a fresh [load] when the block is due to not being ready (a no-op if one is already in flight).
+     *
+     * @return true if `show()` should return immediately; false if the caller may proceed to
+     * [consumeCachedAd] and actually display the ad.
+     */
+    protected fun checkNotReadyOrShowRuleBlocked(callback: AdShowBlockedCallback): Boolean {
+        dropIfExpired()
+        if (!isReady()) {
+            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "not ready")
+            callback.onShowBlocked(BlockReason.NOT_READY)
+            // Self-heal: retrigger a load so this placement doesn't stay stuck reporting not-ready
+            // forever - harmless no-op if one is already in flight (RetryingAdLoader ignores a
+            // concurrent start() call rather than starting a second, independent one).
+            load {}
+            return true
+        }
+        if (config.showRule?.isAllowed(config.placementId) == false) {
+            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "showRule rejected")
+            callback.onShowBlocked(BlockReason.RULE_REJECTED)
+            return true
+        }
+        return false
+    }
 }

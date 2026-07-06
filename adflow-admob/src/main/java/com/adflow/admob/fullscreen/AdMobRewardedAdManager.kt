@@ -8,7 +8,6 @@ import com.adflow.core.AdFlowError
 import com.adflow.core.AdFlowEvent
 import com.adflow.core.AdRevenueEvent
 import com.adflow.core.AdType
-import com.adflow.core.BlockReason
 import com.adflow.core.CachedAdLoaderBase
 import com.adflow.core.PlacementConfig
 import com.adflow.core.RewardItem
@@ -71,23 +70,7 @@ open class AdMobRewardedAdManager(
     }
 
     override fun show(activity: Activity, callback: RewardedAdCallback) {
-        dropIfExpired()
-        if (!isReady()) {
-            // Not ready whether the ad never loaded or went stale past expiryMs - the app doesn't
-            // need to distinguish those cases, only that no ad is available right now.
-            AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "not ready")
-            callback.onShowBlocked(BlockReason.NOT_READY)
-            // Self-heal: retrigger a load so this placement doesn't stay stuck reporting not-ready
-            // forever - harmless no-op if one is already in flight (RetryingAdLoader ignores a
-            // concurrent start() call rather than starting a second, independent one).
-            load()
-            return
-        }
-        if (config.showRule?.isAllowed(placementId) == false) {
-            AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "showRule rejected")
-            callback.onShowBlocked(BlockReason.RULE_REJECTED)
-            return
-        }
+        if (checkNotReadyOrShowRuleBlocked(callback)) return
         val ad = consumeCachedAd()
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdShowedFullScreenContent() = callback.onAdShown()
