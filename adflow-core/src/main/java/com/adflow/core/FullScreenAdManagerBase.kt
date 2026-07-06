@@ -52,8 +52,17 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
 
     override fun show(activity: Activity, callback: ShowCallback) {
         if (!isReady()) {
+            if (cachedAd != null) {
+                // isReady() is false but cachedAd is still set: the ad went stale past expiryMs.
+                // Drop it (so it isn't held onto indefinitely) and kick off a fresh load - otherwise
+                // this placement would silently report NOT_READY forever, since nothing else ever
+                // re-triggers a load once the cached ad expires unshown.
+                cachedAd = null
+                AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.EXPIRED)
+            }
             AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "not ready")
             callback.onShowBlocked(BlockReason.NOT_READY)
+            load()
             return
         }
         if (config.showRule?.isAllowed(config.placementId) == false) {

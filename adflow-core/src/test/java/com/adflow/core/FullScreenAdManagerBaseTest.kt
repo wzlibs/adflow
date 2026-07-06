@@ -112,6 +112,34 @@ class FullScreenAdManagerBaseTest {
     }
 
     @Test
+    fun `show on an expired ad drops the stale ad and triggers a fresh load instead of staying stuck`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"), expiryMs = 1_000)
+        var loadCount = 0
+        val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                loadCount += 1
+                onResult(Result.success("ad-$loadCount"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {}
+        }
+        var now = 0L
+        manager.nowProvider = { now }
+        manager.load {}
+        assertEquals(1, loadCount)
+        assertTrue(manager.isReady())
+
+        now = 2_000 // past expiryMs, the cached ad is now stale
+        var blockedReason: BlockReason? = null
+        manager.show(activity, object : ShowCallback {
+            override fun onShowBlocked(reason: BlockReason) { blockedReason = reason }
+        })
+
+        assertEquals(BlockReason.NOT_READY, blockedReason) // the stale ad itself must never be shown
+        assertEquals(2, loadCount) // a fresh load was kicked off automatically, not left stuck forever
+        assertTrue(manager.isReady()) // and the placement actually recovers instead of staying blocked
+    }
+
+    @Test
     fun `successful show consumes the cached ad and preloads again when enabled`() {
         val config = PlacementConfig(
             placementId = "p1",

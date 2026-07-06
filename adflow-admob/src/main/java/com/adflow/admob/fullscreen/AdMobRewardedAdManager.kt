@@ -50,13 +50,14 @@ open class AdMobRewardedAdManager(
     internal var scheduleRetry: (delayMs: Long, action: () -> Unit) -> Unit
         get() = loader.scheduleRetry
         set(value) { loader.scheduleRetry = value }
+    internal var nowProvider: () -> Long = { System.currentTimeMillis() }
 
     private var cachedAd: RewardedAd? = null
     private var loadedAtMs: Long = 0L
     private var isLoading: Boolean = false
 
     override fun isReady(): Boolean =
-        cachedAd != null && System.currentTimeMillis() - loadedAtMs < config.expiryMs
+        cachedAd != null && nowProvider() - loadedAtMs < config.expiryMs
 
     override fun load(onResult: (AdLoadResult) -> Unit) {
         if (!config.enabled) {
@@ -74,7 +75,7 @@ open class AdMobRewardedAdManager(
         loader.start { result, ad ->
             if (result is AdLoadResult.Success && ad != null) {
                 cachedAd = ad
-                loadedAtMs = System.currentTimeMillis()
+                loadedAtMs = nowProvider()
             }
             isLoading = false
             onResult(result)
@@ -116,12 +117,17 @@ open class AdMobRewardedAdManager(
         if (ad == null) {
             AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "not ready")
             callback.onShowBlocked(BlockReason.NOT_READY)
+            load()
             return
         }
-        if (System.currentTimeMillis() - loadedAtMs >= config.expiryMs) {
+        if (nowProvider() - loadedAtMs >= config.expiryMs) {
+            // The cached ad went stale before anyone called show(). Drop it and kick off a fresh
+            // load - otherwise this placement would silently report NOT_READY/expired forever,
+            // since nothing else ever re-triggers a load once the cached ad expires unshown.
             cachedAd = null
             AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.EXPIRED)
             callback.onAdExpired()
+            load()
             return
         }
         if (config.showRule?.isAllowed(placementId) == false) {
