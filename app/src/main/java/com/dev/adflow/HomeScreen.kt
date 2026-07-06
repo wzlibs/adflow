@@ -32,11 +32,11 @@ fun HomeScreen(placements: DemoAdPlacements) {
     var premium by remember { mutableStateOf(PremiumState.isPremium) }
     var lastReward by remember { mutableStateOf<RewardItem?>(null) }
 
-    // NativeAdView/BannerAdView each re-check isReady() on every recomposition, but
-    // nothing here triggers a recomposition once the ad finishes loading in the
-    // background, so a not-yet-ready ad would silently never appear. Poll isReady()
-    // on a short interval until each ad becomes ready, then stop; reading the
-    // resulting state below is what forces HomeScreen to recompose at that point.
+    // NativeAdView/BannerAdView đều tự check lại isReady() ở mỗi lần recomposition, nhưng
+    // không có gì ở đây kích hoạt recomposition khi ad load xong ở background, nên 1 ad
+    // chưa ready sẽ âm thầm không bao giờ xuất hiện. Poll isReady() theo 1 khoảng ngắn cho
+    // đến khi mỗi ad ready thì dừng; việc đọc state kết quả ở dưới chính là thứ buộc
+    // HomeScreen phải recompose vào lúc đó.
     var nativeReady by remember { mutableStateOf(placements.native.isReady()) }
     LaunchedEffect(placements.native) {
         while (!nativeReady) {
@@ -86,8 +86,8 @@ fun HomeScreen(placements: DemoAdPlacements) {
             (context as? android.app.Activity)?.let { placements.appOpen.show(it, ShowCallback.NONE) }
         }) { Text("Show App Open Ad") }
 
-        // Reading nativeReady/bannerReady here (even though the composables re-check
-        // isReady() themselves) is what ties recomposition to ad-ready state changes.
+        // Đọc nativeReady/bannerReady ở đây (dù các composable đã tự check lại isReady())
+        // chính là thứ gắn recomposition với các thay đổi trạng thái ad-ready.
         if (nativeReady) {
             NativeAdView(manager = placements.native)
         }

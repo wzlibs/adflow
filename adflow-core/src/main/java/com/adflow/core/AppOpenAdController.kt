@@ -8,14 +8,15 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 
 /**
- * Shows [appOpen] automatically whenever the app returns to the foreground, following Google's
- * recommended App Open Ads pattern - as long as it's ready and no other full-screen ad
- * ([AdFlowCore.isShowingFullScreenAd]) is already on screen, since showing an App Open ad on top
- * of an already-visible Interstitial/Rewarded would be broken UX (and against AdMob policy).
+ * Tự động show [appOpen] mỗi khi app quay lại foreground, theo đúng pattern App Open Ads mà Google
+ * khuyến nghị - miễn là ad đã ready và không có full-screen ad nào khác
+ * ([AdFlowCore.isShowingFullScreenAd]) đang hiển thị, vì show App Open ad đè lên
+ * Interstitial/Rewarded đang hiển thị sẽ phá vỡ UX (và vi phạm policy của AdMob).
  *
- * Call [start] once, e.g. from `Application.onCreate()`. Uses [ProcessLifecycleOwner] (not
- * per-Activity lifecycle) to detect a true app-level foreground transition - switching between two
- * Activities within the app must not trigger this, only backgrounding and returning should.
+ * Gọi [start] một lần, ví dụ từ `Application.onCreate()`. Dùng [ProcessLifecycleOwner] (không phải
+ * lifecycle theo từng Activity) để phát hiện đúng một lần chuyển sang foreground ở cấp độ app -
+ * chuyển giữa 2 Activity trong cùng app không được kích hoạt việc này, chỉ khi app vào background
+ * rồi quay lại mới được.
  */
 class AppOpenAdController(
     private val application: Application,
@@ -55,8 +56,8 @@ class AppOpenAdController(
         }
     }
 
-    /** Idempotent - a second call while already started is a no-op, so callers don't need to
-     * guard against calling [start] more than once (e.g. from a re-entered `Application.onCreate`). */
+    /** Idempotent - gọi lần 2 khi đã start rồi thì không làm gì, nên caller không cần tự canh
+     * chừng việc gọi [start] nhiều hơn 1 lần (ví dụ từ `Application.onCreate` bị gọi lại). */
     fun start() {
         if (started) return
         started = true
@@ -64,7 +65,7 @@ class AppOpenAdController(
         ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver)
     }
 
-    /** Reverses [start]; a no-op if not currently started. */
+    /** Đảo ngược [start]; không làm gì nếu chưa start. */
     fun stop() {
         if (!started) return
         started = false
@@ -73,9 +74,9 @@ class AppOpenAdController(
     }
 
     /**
-     * Process start can fire before Android delivers the matching Activity resume callback, so a
-     * foreground transition with no [currentActivity] yet must not be dropped - it's deferred
-     * until [onActivityResumed] fires instead of being lost.
+     * Process start có thể xảy ra trước khi Android gọi callback resume của Activity tương ứng,
+     * nên một lần chuyển sang foreground mà chưa có [currentActivity] không được bỏ qua - nó được
+     * trì hoãn (defer) đến khi [onActivityResumed] chạy, thay vì bị mất.
      */
     internal fun onForegroundStart() {
         if (currentActivity == null) {
@@ -90,8 +91,9 @@ class AppOpenAdController(
     }
 
     /**
-     * The actual show-or-skip decision, kept separate from the lifecycle plumbing that triggers
-     * it so it can be exercised directly without driving a full process lifecycle transition.
+     * Quyết định show-hoặc-bỏ-qua thực sự, được tách riêng khỏi phần lifecycle plumbing kích hoạt
+     * nó, để có thể gọi trực tiếp trong test mà không cần tạo ra cả một lần chuyển process
+     * lifecycle đầy đủ.
      */
     internal fun showIfPossible() {
         val activity = currentActivity ?: return

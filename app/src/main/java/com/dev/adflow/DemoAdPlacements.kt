@@ -13,8 +13,8 @@ import com.adflow.core.RewardedAdManager
 
 class DemoAdPlacements(context: Context) {
 
-    // The single line that ties the app to a network implementation; swap
-    // AdMobProvider for another AdNetworkProvider implementation to switch networks.
+    // Dòng duy nhất gắn app với 1 network implementation cụ thể; đổi
+    // AdMobProvider sang implementation AdNetworkProvider khác để chuyển network.
     val provider: AdNetworkProvider = AdMobProvider(context)
 
     private val notPremium = AdRule { !PremiumState.isPremium }

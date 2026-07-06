@@ -46,13 +46,13 @@ class ExpiringCachedAdLoaderBaseTest {
         assertEquals(1, loadCount)
         assertTrue(manager.isReady())
 
-        now = 2_000 // past expiryMs
-        assertFalse(manager.isReady()) // stale, even though dropIfExpired() hasn't run yet
+        now = 2_000 // quá expiryMs
+        assertFalse(manager.isReady()) // đã cũ (stale), dù dropIfExpired() chưa chạy
 
         var result: AdLoadResult? = null
         manager.load { result = it }
         assertEquals(AdLoadResult.Success, result)
-        assertEquals(2, loadCount) // isReady() being false let load() proceed with a fresh waterfall
+        assertEquals(2, loadCount) // isReady() là false nên load() tiếp tục chạy 1 waterfall mới
     }
 
     @Test
@@ -71,7 +71,7 @@ class ExpiringCachedAdLoaderBaseTest {
         manager.load {}
         assertEquals(1, onLoadedCallCount)
 
-        manager.load {} // still fresh - isReady() shortcut, must not touch the load timestamp again
+        manager.load {} // vẫn còn fresh - isReady() shortcut, không được đụng lại load timestamp
         assertEquals(1, onLoadedCallCount)
     }
 }

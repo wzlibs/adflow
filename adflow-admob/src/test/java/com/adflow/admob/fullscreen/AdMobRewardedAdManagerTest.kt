@@ -28,11 +28,11 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
 /**
- * Proves that AdMobRewardedAdManager's load/retry plumbing - now delegated to the shared
- * [com.adflow.core.RetryingAdLoader] - retries the waterfall with an injectable scheduler,
- * exactly like the full-screen managers built on [com.adflow.core.FullScreenAdManagerBase].
- * Before this refactor this behavior was unit-untestable because the retry scheduler was a
- * hardcoded `Handler(...).postDelayed(...)` call.
+ * Chứng minh phần load/retry của AdMobRewardedAdManager - giờ đã giao cho
+ * [com.adflow.core.RetryingAdLoader] dùng chung - retry waterfall với scheduler có thể inject
+ * được, giống hệt các full-screen manager xây trên [com.adflow.core.FullScreenAdManagerBase].
+ * Trước khi refactor này, hành vi này không thể unit-test được vì retry scheduler là 1 lệnh
+ * `Handler(...).postDelayed(...)` hardcode.
  */
 @RunWith(RobolectricTestRunner::class)
 class AdMobRewardedAdManagerTest {
@@ -40,8 +40,8 @@ class AdMobRewardedAdManagerTest {
     private val context: Context = RuntimeEnvironment.getApplication()
     private val activity: Activity = Robolectric.buildActivity(Activity::class.java).get()
 
-    // RewardedAd is abstract with a public no-arg constructor and only abstract members, so it's
-    // directly fakeable here without Mockito (unlike NativeAd, see AdMobNativeAdManagerTest).
+    // RewardedAd là abstract với constructor public không tham số và chỉ có member abstract, nên
+    // fake được trực tiếp ở đây mà không cần Mockito (khác với NativeAd, xem AdMobNativeAdManagerTest).
     private class FakeRewardedAd(private val throwOnShow: Boolean = false) : RewardedAd() {
         override fun setServerSideVerificationOptions(options: ServerSideVerificationOptions?) {}
         override fun setOnAdMetadataChangedListener(listener: OnAdMetadataChangedListener?) {}
@@ -51,8 +51,8 @@ class AdMobRewardedAdManagerTest {
             if (throwOnShow) throw IllegalStateException("SDK blew up")
         }
         override fun getRewardItem(): RewardItem = RewardItem.DEFAULT_REWARD
-        // ResponseInfo has no public constructor and isn't needed by the blocked-show path this
-        // fake exists for; only satisfies the NonNull-return override requirement at compile time.
+        // ResponseInfo không có constructor public và cũng không cần cho luồng blocked-show mà
+        // fake này tồn tại để phục vụ; chỉ để thỏa mãn yêu cầu override kiểu trả về NonNull lúc compile.
         override fun getResponseInfo(): ResponseInfo = error("ResponseInfo not available on this fake")
         override fun setOnPaidEventListener(listener: OnPaidEventListener?) {}
         override fun getOnPaidEventListener(): OnPaidEventListener? = null
@@ -91,12 +91,12 @@ class AdMobRewardedAdManagerTest {
         var result: AdLoadResult? = null
         manager.load { result = it }
 
-        // First waterfall pass tried both ad units and failed; scheduled exactly one retry.
+        // Lượt waterfall đầu tiên thử cả 2 ad unit và fail; đã schedule đúng 1 lần retry.
         assertEquals(2, manager.attemptCount)
-        assertEquals(null, result) // still retrying, waiting on the scheduler
+        assertEquals(null, result) // vẫn đang retry, chờ scheduler
         assertEquals(1, fakeScheduler.size)
 
-        fakeScheduler.removeAt(0).invoke() // run the retry synchronously
+        fakeScheduler.removeAt(0).invoke() // chạy lần retry đồng bộ
 
         assertEquals(4, manager.attemptCount)
         assertTrue(result is AdLoadResult.Failure)
@@ -114,7 +114,7 @@ class AdMobRewardedAdManagerTest {
         val manager = TestableRewardedAdManager(context, config, mutableListOf(Result.success(FakeRewardedAd())))
         manager.load {}
         assertTrue(manager.isReady())
-        AdFlowCore.tryClaimFullScreenSlot() // simulates an Interstitial/AppOpen/other Rewarded already on screen
+        AdFlowCore.tryClaimFullScreenSlot() // giả lập 1 Interstitial/AppOpen/Rewarded khác đang hiển thị
 
         var blockedReason: BlockReason? = null
         manager.show(activity, object : RewardedAdCallback {
@@ -122,7 +122,7 @@ class AdMobRewardedAdManagerTest {
         })
 
         assertEquals(BlockReason.ANOTHER_AD_SHOWING, blockedReason)
-        assertTrue(manager.isReady()) // the blocked attempt must not have consumed/lost its cached ad
+        assertTrue(manager.isReady()) // lần bị chặn không được làm mất/tiêu thụ cached ad của nó
     }
 
     @Test
@@ -136,19 +136,19 @@ class AdMobRewardedAdManagerTest {
             manager.show(activity, RewardedAdCallback.NONE)
             org.junit.Assert.fail("expected the exception to propagate")
         } catch (e: IllegalStateException) {
-            // expected - the exception must still propagate, not be swallowed
+            // đúng như mong đợi - exception vẫn phải propagate, không bị nuốt
         }
 
-        // The consumed ad is gone (and its state after a synchronous SDK throw is unknown), so the
-        // placement must self-heal with a fresh load instead of being stuck reporting not-ready.
+        // Ad đã bị consume (và trạng thái của nó sau khi SDK throw đồng bộ là không xác định),
+        // nên placement phải tự phục hồi bằng 1 lần load mới, thay vì bị kẹt ở not-ready.
         assertEquals(2, manager.attemptCount)
     }
 
     @Test
     fun `show on a never-loaded placement blocks as not-ready and triggers a fresh load`() {
-        // Regression test: show() used to just report NOT_READY and stop, leaving the placement
-        // permanently stuck if the caller never manually called load() again. It must now kick off
-        // a fresh load itself - same fix applied to FullScreenAdManagerBase's expired-ad path.
+        // Regression test: trước đây show() chỉ báo NOT_READY rồi dừng, để placement bị kẹt vĩnh
+        // viễn nếu caller không tự tay gọi lại load(). Giờ nó phải tự kích hoạt 1 lần load mới -
+        // cùng cách fix đã áp dụng cho luồng ad hết hạn của FullScreenAdManagerBase.
         val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
         val manager = TestableRewardedAdManager(context, config, mutableListOf())
 
@@ -158,6 +158,6 @@ class AdMobRewardedAdManagerTest {
         })
 
         assertEquals(BlockReason.NOT_READY, blockedReason)
-        assertEquals(1, manager.attemptCount) // show() triggered load(), which attempted ad unit "A"
+        assertEquals(1, manager.attemptCount) // show() đã kích hoạt load(), thử ad unit "A"
     }
 }

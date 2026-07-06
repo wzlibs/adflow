@@ -50,7 +50,7 @@ class SimpleCachedAdLoaderBaseTest {
 
         var result: AdLoadResult? = null
         manager.load { result = it }
-        assertEquals(1, requestCount) // still cached - load() must not start a second waterfall
+        assertEquals(1, requestCount) // vẫn còn cached - load() không được chạy thêm 1 waterfall
         assertEquals(AdLoadResult.Success, result)
     }
 
@@ -67,10 +67,10 @@ class SimpleCachedAdLoaderBaseTest {
 
         var result: AdLoadResult? = null
         manager.load { result = it }
-        assertEquals(null, result) // still retrying, waiting on the scheduler
+        assertEquals(null, result) // vẫn đang retry, chờ scheduler
         assertEquals(1, fakeScheduler.size)
 
-        fakeScheduler.removeAt(0).invoke() // run the retry synchronously
+        fakeScheduler.removeAt(0).invoke() // chạy lần retry đồng bộ
         assertTrue(result is AdLoadResult.Failure)
         assertFalse(manager.isReady())
     }
@@ -121,7 +121,7 @@ class SimpleCachedAdLoaderBaseTest {
 
             override fun onLoaded(ad: String) {
                 onLoadedCallCount += 1
-                cachedAdWhenOnLoadedFired = cachedAd // must already reflect the just-loaded ad
+                cachedAdWhenOnLoadedFired = cachedAd // phải đã phản ánh đúng ad vừa load xong
             }
         }
 
@@ -129,7 +129,7 @@ class SimpleCachedAdLoaderBaseTest {
         assertEquals(1, onLoadedCallCount)
         assertEquals("ad-A", cachedAdWhenOnLoadedFired)
 
-        // isReady() shortcut - a redundant load() while already cached must not fire onLoaded again.
+        // isReady() shortcut - 1 lần load() dư thừa trong khi đã cached không được gọi lại onLoaded.
         manager.load {}
         assertEquals(1, onLoadedCallCount)
     }
@@ -149,8 +149,8 @@ class SimpleCachedAdLoaderBaseTest {
         ) {
             override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
                 attempts += 1
-                // Fail the first attempt so the cycle stays in flight (retry scheduled), leaving a
-                // window for a second load() call to coalesce onto it before it resolves.
+                // Cho attempt đầu fail để cycle vẫn đang chạy (retry đã schedule), tạo khoảng thời
+                // gian cho 1 lần load() thứ 2 coalesce vào trước khi nó resolve.
                 if (attempts == 1) onResult(Result.failure(RuntimeException("no fill"))) else onResult(Result.success("ad-A"))
             }
 
@@ -163,16 +163,16 @@ class SimpleCachedAdLoaderBaseTest {
         var firstResult: AdLoadResult? = null
         var secondResult: AdLoadResult? = null
         manager.load { firstResult = it }
-        assertEquals(1, fakeScheduler.size) // first attempt failed, retry scheduled, still in flight
+        assertEquals(1, fakeScheduler.size) // attempt đầu fail, đã schedule retry, vẫn đang chạy
 
-        manager.load { secondResult = it } // coalesces onto the in-flight retry cycle, per RetryingAdLoader
+        manager.load { secondResult = it } // coalesce vào cycle retry đang chạy, theo cơ chế RetryingAdLoader
 
-        fakeScheduler.removeAt(0).invoke() // run the retry synchronously - succeeds this time
+        fakeScheduler.removeAt(0).invoke() // chạy lần retry đồng bộ - lần này thành công
 
         assertEquals(AdLoadResult.Success, firstResult)
         assertEquals(AdLoadResult.Success, secondResult)
-        // Both coalesced callbacks run the same "cache the ad" branch - onLoaded must still only
-        // fire once for this one genuine load, not once per coalesced caller.
+        // Cả 2 callback được coalesce đều chạy chung nhánh "cache ad" - onLoaded vẫn chỉ được gọi
+        // đúng 1 lần cho 1 lần load thật, không phải 1 lần cho mỗi caller được coalesce.
         assertEquals(1, onLoadedCallCount)
     }
 }

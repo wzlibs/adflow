@@ -21,12 +21,12 @@ private const val SPLASH_READY_TIMEOUT_MS = 5000L
 fun SplashScreen(placements: DemoAdPlacements, onDone: () -> Unit) {
     val context = LocalContext.current
 
-    // AdFlowDemoApp.onCreate() kicks off splashInterstitial.load() asynchronously in the
-    // background. If show() is called immediately on first composition, it almost always
-    // races ahead of that load and FullScreenAdManagerBase.show() synchronously blocks with
-    // NOT_READY (it does not wait for a load in flight). Poll isReady() first, matching the
-    // pattern used for the native/banner ads in HomeScreen, with a timeout so a user is never
-    // stuck on the splash screen if the ad never becomes ready (no fill, no network, etc.).
+    // AdFlowDemoApp.onCreate() kích hoạt splashInterstitial.load() bất đồng bộ ở background.
+    // Nếu show() được gọi ngay lúc composition đầu tiên, nó gần như luôn chạy trước lần load
+    // đó và FullScreenAdManagerBase.show() sẽ chặn đồng bộ với NOT_READY (nó không đợi 1 lần
+    // load đang chạy). Poll isReady() trước, theo đúng pattern dùng cho native/banner ad ở
+    // HomeScreen, có timeout để user không bao giờ bị kẹt ở splash screen nếu ad không bao
+    // giờ ready (no fill, không có network, v.v.).
     LaunchedEffect(Unit) {
         val activity = context as? android.app.Activity ?: return@LaunchedEffect onDone()
 

@@ -34,7 +34,7 @@ class FullScreenAdManagerBaseTest {
 
     @After
     fun tearDown() {
-        AdFlowCore.reset() // also resets AdShowIntervalPolicy internally
+        AdFlowCore.reset() // cũng reset luôn AdShowIntervalPolicy
     }
 
     @Test
@@ -63,7 +63,7 @@ class FullScreenAdManagerBaseTest {
 
         var result: AdLoadResult? = null
         manager.load { result = it }
-        assertEquals(1, requestCount) // still fresh - load() must not start a second waterfall
+        assertEquals(1, requestCount) // vẫn còn fresh - load() không được chạy thêm 1 waterfall
         assertEquals(AdLoadResult.Success, result)
     }
 
@@ -80,10 +80,10 @@ class FullScreenAdManagerBaseTest {
 
         var result: AdLoadResult? = null
         manager.load { result = it }
-        assertEquals(null, result) // still retrying, waiting on the scheduler
+        assertEquals(null, result) // vẫn đang retry, chờ scheduler
         assertEquals(1, fakeScheduler.size)
 
-        fakeScheduler.removeAt(0).invoke() // run the retry synchronously
+        fakeScheduler.removeAt(0).invoke() // chạy lần retry đồng bộ
         assertTrue(result is AdLoadResult.Failure)
         assertFalse(manager.isReady())
     }
@@ -133,9 +133,9 @@ class FullScreenAdManagerBaseTest {
 
     @Test
     fun `show-interval cooldown is shared across different placements of the same ad type`() {
-        // The same-type gap is a single global clock per AdType, not scoped per placement -
-        // showing "splash_interstitial" must also block "global_interstitial" from showing right
-        // after, since both are still an INTERSTITIAL from the user's perspective.
+        // Gap cùng loại là 1 clock toàn cục cho mỗi AdType, không scoped theo placement -
+        // show "splash_interstitial" phải chặn cả "global_interstitial" show ngay sau đó, vì cả
+        // 2 đều là INTERSTITIAL theo góc nhìn của người dùng.
         val configA = PlacementConfig(placementId = "splash_interstitial", adUnitIds = listOf("A"))
         val configB = PlacementConfig(placementId = "global_interstitial", adUnitIds = listOf("B"))
         val managerA = FakeManager(configA, mutableMapOf("A" to Result.success("ad-A")))
@@ -171,15 +171,15 @@ class FullScreenAdManagerBaseTest {
         assertEquals(1, loadCount)
         assertTrue(manager.isReady())
 
-        now = 2_000 // past expiryMs, the cached ad is now stale
+        now = 2_000 // quá expiryMs, cached ad giờ đã cũ (stale)
         var blockedReason: BlockReason? = null
         manager.show(activity, object : ShowCallback {
             override fun onShowBlocked(reason: BlockReason) { blockedReason = reason }
         })
 
-        assertEquals(BlockReason.NOT_READY, blockedReason) // the stale ad itself must never be shown
-        assertEquals(2, loadCount) // a fresh load was kicked off automatically, not left stuck forever
-        assertTrue(manager.isReady()) // and the placement actually recovers instead of staying blocked
+        assertEquals(BlockReason.NOT_READY, blockedReason) // ad cũ không bao giờ được show
+        assertEquals(2, loadCount) // 1 lần load mới đã tự kích hoạt, không bị kẹt mãi
+        assertTrue(manager.isReady()) // và placement thực sự phục hồi, không bị chặn mãi
     }
 
     @Test
@@ -198,17 +198,17 @@ class FullScreenAdManagerBaseTest {
             }
             override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
                 callback.onAdShown()
-                deferredDismiss = { callback.onAdDismissed() } // simulate the ad still being on screen
+                deferredDismiss = { callback.onAdDismissed() } // giả lập ad vẫn đang hiển thị
             }
         }
         manager.load {}
         assertEquals(1, loadCount)
 
         manager.show(activity, ShowCallback.NONE)
-        assertEquals(1, loadCount) // ad is still on screen (not dismissed yet) - no preload yet
+        assertEquals(1, loadCount) // ad vẫn đang hiển thị (chưa dismiss) - chưa preload
 
         deferredDismiss?.invoke()
-        assertEquals(2, loadCount) // preload triggered only once the ad was actually dismissed
+        assertEquals(2, loadCount) // preload chỉ chạy khi ad thực sự đã dismissed
     }
 
     @Test
@@ -229,10 +229,10 @@ class FullScreenAdManagerBaseTest {
         assertEquals(1, loadCount)
 
         manager.show(activity, ShowCallback.NONE)
-        assertEquals(1, loadCount) // failure hasn't actually happened yet - no preload yet
+        assertEquals(1, loadCount) // lỗi chưa thực sự xảy ra - chưa preload
 
         deferredFail?.invoke()
-        assertEquals(2, loadCount) // preload triggered once the failure was actually reported
+        assertEquals(2, loadCount) // preload chạy khi lỗi đã thực sự được báo
     }
 
     @Test
@@ -244,15 +244,15 @@ class FullScreenAdManagerBaseTest {
                 onResult(Result.success("ad-A"))
             }
             override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
-                deferredDismiss = { callback.onAdDismissed() } // simulate the ad still being on screen
+                deferredDismiss = { callback.onAdDismissed() } // giả lập ad vẫn đang hiển thị
             }
         }
         manager.nowProvider = { 1_000L }
         manager.load {}
         manager.show(activity, ShowCallback.NONE)
 
-        // The ad is still on screen - display duration is out of our control, so the interval clock
-        // must not start until the ad is actually dismissed, not the instant show() was called.
+        // Ad vẫn đang hiển thị - thời gian hiển thị không do ta kiểm soát, nên đồng hồ interval
+        // không được bắt đầu tính cho đến khi ad thực sự dismissed, không phải ngay lúc show().
         assertTrue(AdShowIntervalPolicy.canShow(AdType.INTERSTITIAL, now = 1_000L))
 
         deferredDismiss?.invoke()
@@ -294,13 +294,13 @@ class FullScreenAdManagerBaseTest {
         }
         manager.load {}
 
-        assertFalse(AdFlowCore.isShowingFullScreenAd) // not shown yet
+        assertFalse(AdFlowCore.isShowingFullScreenAd) // chưa show
         manager.show(activity, ShowCallback.NONE)
-        assertTrue(showingWhileOnScreen) // set before performShow() hands off to the SDK
-        assertTrue(AdFlowCore.isShowingFullScreenAd) // still on screen - dismiss hasn't fired yet
+        assertTrue(showingWhileOnScreen) // được set trước khi performShow() giao cho SDK
+        assertTrue(AdFlowCore.isShowingFullScreenAd) // vẫn đang hiển thị - chưa dismiss
 
         deferredDismiss?.invoke()
-        assertFalse(AdFlowCore.isShowingFullScreenAd) // cleared once dismissed
+        assertFalse(AdFlowCore.isShowingFullScreenAd) // được clear khi dismissed
     }
 
     @Test
@@ -328,7 +328,7 @@ class FullScreenAdManagerBaseTest {
                 onResult(Result.success("ad-A"))
             }
             override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
-                // Deliberately never dismisses - ad A stays on screen for the rest of this test.
+                // Chủ ý không dismiss - ad A hiển thị suốt phần còn lại của test này.
             }
         }
         var managerBShown = false
@@ -350,8 +350,8 @@ class FullScreenAdManagerBaseTest {
         })
 
         assertEquals(BlockReason.ANOTHER_AD_SHOWING, blockedReason)
-        assertFalse(managerBShown) // must never be displayed on top of ad A
-        assertTrue(managerB.isReady()) // the blocked attempt must not have consumed/lost its cached ad
+        assertFalse(managerBShown) // không bao giờ được hiển thị đè lên ad A
+        assertTrue(managerB.isReady()) // lần bị chặn không được làm mất/tiêu thụ cached ad của nó
     }
 
     @Test
@@ -371,10 +371,10 @@ class FullScreenAdManagerBaseTest {
             manager.show(activity, ShowCallback.NONE)
             org.junit.Assert.fail("expected the exception to propagate")
         } catch (e: IllegalStateException) {
-            // expected - the exception must still propagate, not be swallowed
+            // đúng như mong đợi - exception vẫn phải propagate, không bị nuốt
         }
 
-        assertFalse(AdFlowCore.isShowingFullScreenAd) // must not be left stuck true
+        assertFalse(AdFlowCore.isShowingFullScreenAd) // không được kẹt ở true mãi
     }
 
     @Test
@@ -397,12 +397,12 @@ class FullScreenAdManagerBaseTest {
             manager.show(activity, ShowCallback.NONE)
             org.junit.Assert.fail("expected the exception to propagate")
         } catch (e: IllegalStateException) {
-            // expected - the exception must still propagate, not be swallowed
+            // đúng như mong đợi - exception vẫn phải propagate, không bị nuốt
         }
 
-        // The consumed ad is gone (and its state after a synchronous SDK throw is unknown), so the
-        // placement must self-heal with a fresh load instead of being stuck reporting not-ready
-        // until some unrelated caller happens to call load() again.
+        // Ad đã bị consume (và trạng thái của nó sau khi SDK throw đồng bộ là không xác định),
+        // nên placement phải tự phục hồi bằng 1 lần load mới, thay vì bị kẹt ở not-ready cho đến
+        // khi có caller khác vô tình gọi load().
         assertEquals(2, loadCount)
         assertTrue(manager.isReady())
     }

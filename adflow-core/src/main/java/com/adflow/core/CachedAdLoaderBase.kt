@@ -1,15 +1,14 @@
 package com.adflow.core
 
 /**
- * Adds the show()-consumption helpers full-screen ads and Rewarded need on top of
- * [ExpiringCachedAdLoaderBase]'s expiry tracking.
+ * Bổ sung các helper cho việc "tiêu thụ" (consumption) khi show() mà full-screen ad và Rewarded
+ * cần, dựa trên nền tracking expiry của [ExpiringCachedAdLoaderBase].
  *
- * `show()` itself is deliberately NOT here: [com.adflow.core] declares two different show contracts
- * (`FullScreenAdManager.show` takes a [ShowCallback], `RewardedAdManager.show` takes a
- * [RewardedAdCallback] which additionally surfaces [RewardedAdCallback.onUserEarnedReward]), so each
- * concrete manager implements its own `show()` using the protected helpers here ([dropIfExpired],
- * [consumeCachedAd], [preloadIfEnabled]) rather than duplicating the caching/expiry/retry bookkeeping
- * itself.
+ * `show()` bản thân nó CHỦ Ý không nằm ở đây: [com.adflow.core] khai báo 2 contract show() khác
+ * nhau (`FullScreenAdManager.show` nhận [ShowCallback], `RewardedAdManager.show` nhận
+ * [RewardedAdCallback] - có thêm [RewardedAdCallback.onUserEarnedReward]), nên mỗi manager cụ thể
+ * tự triển khai `show()` riêng, dùng các helper protected ở đây ([dropIfExpired],
+ * [consumeCachedAd], [preloadIfEnabled]) thay vì phải lặp lại logic cache/expiry/retry.
  */
 abstract class CachedAdLoaderBase<TAd : Any>(
     config: PlacementConfig,
@@ -17,10 +16,10 @@ abstract class CachedAdLoaderBase<TAd : Any>(
 ) : ExpiringCachedAdLoaderBase<TAd>(config, adType) {
 
     /**
-     * Takes and clears the cached ad - subclasses call this right before actually displaying it,
-     * once every show-blocking check (ready/showRule/interval) has already passed. Requires
-     * [isReady] to have just been checked true; fails loudly instead of silently swallowing the
-     * show() call if that invariant is ever violated.
+     * Lấy ra và xóa cached ad - subclass gọi hàm này ngay trước khi thực sự hiển thị ad, sau khi
+     * mọi check chặn-show (ready/showRule/interval) đã pass. Yêu cầu [isReady] vừa được check là
+     * true; fail rõ ràng (loudly) thay vì âm thầm nuốt (swallow) lệnh show() nếu invariant này bị
+     * vi phạm.
      */
     protected fun consumeCachedAd(): TAd {
         val ad = requireNotNull(cachedAd)
@@ -29,32 +28,32 @@ abstract class CachedAdLoaderBase<TAd : Any>(
     }
 
     /**
-     * Preloads the next ad if [PlacementConfig.preloadEnabled] is set. Call this once the current
-     * ad's display lifecycle has truly ended (dismissed or failed to show) - not immediately when
-     * show() is called - since display duration varies per ad and isn't something callers control.
+     * Preload ad tiếp theo nếu [PlacementConfig.preloadEnabled] được bật. Gọi hàm này khi vòng đời
+     * hiển thị của ad hiện tại đã thực sự kết thúc (dismissed hoặc show lỗi) - không gọi ngay lúc
+     * show() được gọi - vì thời gian hiển thị khác nhau tùy từng ad và không do caller kiểm soát.
      */
     protected fun preloadIfEnabled() {
         if (config.preloadEnabled) load {}
     }
 
     /**
-     * Checks and reports the two not-ready/showRule blocking conditions every `show()`
-     * implementation built on this base shares (interval-capping, where it applies, is each
-     * subclass's own concern - see [AdShowIntervalPolicy]). Drops a stale ad first, logs and
-     * notifies [callback] via [AdShowBlockedCallback.onShowBlocked] if blocked, and self-heals with
-     * a fresh [load] when the block is due to not being ready (a no-op if one is already in flight).
+     * Check và báo cáo 2 điều kiện chặn not-ready/showRule mà mọi triển khai `show()` dựa trên
+     * base này đều dùng chung (interval-capping, nơi nó áp dụng, là việc riêng của từng subclass -
+     * xem [AdShowIntervalPolicy]). Drop ad cũ (stale) trước, log và báo [callback] qua
+     * [AdShowBlockedCallback.onShowBlocked] nếu bị chặn, và tự phục hồi (self-heal) bằng một lần
+     * [load] mới khi bị chặn do not-ready (no-op nếu đã có 1 lần load đang chạy).
      *
-     * @return true if `show()` should return immediately; false if the caller may proceed to
-     * [consumeCachedAd] and actually display the ad.
+     * @return true nếu `show()` nên return ngay; false nếu caller có thể tiếp tục gọi
+     * [consumeCachedAd] và thực sự hiển thị ad.
      */
     protected fun checkNotReadyOrShowRuleBlocked(callback: AdShowBlockedCallback): Boolean {
         dropIfExpired()
         if (!isReady()) {
             AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "not ready")
             callback.onShowBlocked(BlockReason.NOT_READY)
-            // Self-heal: retrigger a load so this placement doesn't stay stuck reporting not-ready
-            // forever - harmless no-op if one is already in flight (RetryingAdLoader ignores a
-            // concurrent start() call rather than starting a second, independent one).
+            // Self-heal: kích hoạt lại 1 lần load để placement này không bị kẹt mãi ở trạng thái
+            // not-ready - vô hại (no-op) nếu đã có 1 lần load đang chạy (RetryingAdLoader sẽ
+            // coalesce lệnh start() đồng thời này vào cycle đang chạy, không tạo cycle độc lập thứ 2).
             load {}
             return true
         }

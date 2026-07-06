@@ -7,22 +7,22 @@ object AdFlowCore {
     private val revenueLoggers = mutableListOf<RevenueLogger>()
 
     /**
-     * True while any full-screen ad (Interstitial/AppOpen/Rewarded) is currently on screen.
-     * Claimed/released atomically via [tryClaimFullScreenSlot]/[releaseFullScreenSlot] by every
-     * full-screen show() path, so two full-screen ads - even from different managers, or
-     * concurrent show() calls - can never both be on screen at once. Consulted by
-     * [AppOpenAdController] as a best-effort pre-check so it never even attempts to show an App
-     * Open ad on top of an already-visible full-screen ad.
+     * True trong khi có bất kỳ full-screen ad nào (Interstitial/AppOpen/Rewarded) đang hiển thị
+     * trên màn hình. Được claim/release một cách atomic qua [tryClaimFullScreenSlot]/
+     * [releaseFullScreenSlot] bởi mọi luồng show() full-screen, để 2 full-screen ad - dù từ 2
+     * manager khác nhau, hay gọi show() đồng thời - không thể nào cùng hiển thị 1 lúc. Được
+     * [AppOpenAdController] tham chiếu như một bước kiểm tra sơ bộ (best-effort) để không bao giờ
+     * thử show App Open ad đè lên một full-screen ad đang hiển thị.
      */
     var isShowingFullScreenAd: Boolean = false
         private set
 
     /**
-     * Atomically claims the single full-screen slot: returns true and marks it taken if it was
-     * free, or returns false with no side effect if another full-screen ad is already showing.
-     * Every successful claim must be paired with exactly one [releaseFullScreenSlot] call once
-     * that ad's show lifecycle actually ends (dismissed, failed to show, or the SDK threw
-     * synchronously) - callers must not proceed to display an ad after a false result.
+     * Chiếm quyền (claim) slot full-screen duy nhất một cách atomic: trả về true và đánh dấu đã
+     * chiếm nếu slot đang trống, hoặc trả về false (không side-effect) nếu đã có full-screen ad
+     * khác đang hiển thị. Mỗi lần claim thành công phải đi kèm đúng 1 lần gọi
+     * [releaseFullScreenSlot] khi vòng đời show() của ad đó thực sự kết thúc (dismissed, show lỗi,
+     * hoặc SDK throw đồng bộ) - caller không được tiếp tục hiển thị ad sau khi nhận kết quả false.
      */
     @Synchronized
     fun tryClaimFullScreenSlot(): Boolean {
@@ -31,7 +31,7 @@ object AdFlowCore {
         return true
     }
 
-    /** Releases a slot previously won via [tryClaimFullScreenSlot]. */
+    /** Giải phóng slot đã chiếm trước đó qua [tryClaimFullScreenSlot]. */
     @Synchronized
     fun releaseFullScreenSlot() {
         isShowingFullScreenAd = false

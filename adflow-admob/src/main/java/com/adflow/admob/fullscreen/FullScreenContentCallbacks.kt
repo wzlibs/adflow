@@ -6,12 +6,11 @@ import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.FullScreenContentCallback
 
 /**
- * Builds the [FullScreenContentCallback] every AdMob full-screen ad type wires onto its ad object
- * before calling `show()` - the SDK's callback shape is identical across ad types (Interstitial,
- * App Open), so only the concrete ad class differs, not this wiring. [AdMobRewardedAdManager]
- * doesn't use this: its `FullScreenContentCallback` does extra work on dismiss/fail (triggering a
- * preload, and logging [com.adflow.core.AdFlowEvent.SHOW_FAILED]) that this simple forwarder
- * doesn't need.
+ * Xây dựng [FullScreenContentCallback] mà mọi loại full-screen ad của AdMob gắn vào ad object của
+ * nó trước khi gọi `show()` - hình dạng callback của SDK giống nhau giữa các loại ad (Interstitial,
+ * App Open), chỉ khác class ad cụ thể, không khác cách nối này. [AdMobRewardedAdManager] không
+ * dùng hàm này: `FullScreenContentCallback` của nó làm thêm việc khi dismiss/fail (kích hoạt
+ * preload, và log [com.adflow.core.AdFlowEvent.SHOW_FAILED]) mà bộ forwarder đơn giản này không cần.
  */
 internal fun fullScreenContentCallback(callback: ShowCallback): FullScreenContentCallback =
     object : FullScreenContentCallback() {

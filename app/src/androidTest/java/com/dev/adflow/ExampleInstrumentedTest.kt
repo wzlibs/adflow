@@ -9,15 +9,15 @@ import org.junit.runner.RunWith
 import org.junit.Assert.*
 
 /**
- * Instrumented test, which will execute on an Android device.
+ * Instrumented test, sẽ chạy trên thiết bị Android thật.
  *
- * See [testing documentation](http://d.android.com/tools/testing).
+ * Xem [tài liệu testing](http://d.android.com/tools/testing).
  */
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {
     @Test
     fun useAppContext() {
-        // Context of the app under test.
+        // Context của app đang được test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("com.dev.adflow", appContext.packageName)
     }

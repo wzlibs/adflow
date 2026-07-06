@@ -7,10 +7,10 @@ import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.ResponseInfo
 
 /**
- * Builds and dispatches the [AdRevenueEvent] for a paid-event callback. Every AdMob*AdManager
- * wires this to the SDK's `onPaidEventListener`/`setOnPaidEventListener` with identical logic
- * except for which placement/ad type/ad unit/response info it's reporting for - shared here so
- * that mapping isn't copy-pasted once per ad type.
+ * Xây dựng và dispatch [AdRevenueEvent] cho 1 callback paid-event. Mọi AdMob*AdManager đều nối
+ * hàm này vào `onPaidEventListener`/`setOnPaidEventListener` của SDK với logic giống nhau, chỉ
+ * khác placement/ad type/ad unit/response info đang report - đặt chung ở đây để không phải
+ * copy-paste việc mapping này cho mỗi loại ad.
  */
 internal fun dispatchRevenue(
     placementId: String,

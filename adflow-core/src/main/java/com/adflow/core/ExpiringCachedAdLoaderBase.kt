@@ -1,18 +1,17 @@
 package com.adflow.core
 
 /**
- * Adds expiry to [SimpleCachedAdLoaderBase]'s load/cache/retry lifecycle: drops the cached ad once
- * it's past [PlacementConfig.expiryMs] instead of holding onto a stale reference until the next
- * successful load overwrites it.
+ * Bổ sung expiry vào vòng đời load/cache/retry của [SimpleCachedAdLoaderBase]: drop cached ad khi
+ * đã quá [PlacementConfig.expiryMs] thay vì giữ một reference cũ (stale) cho đến khi lần load
+ * thành công tiếp theo ghi đè lên nó.
  *
- * Shared by every ad type that goes stale once cached: full-screen ads and Rewarded (via
- * [CachedAdLoaderBase], which additionally adds the show()-consumption helpers those "shown once"
- * ad types need) and Native (directly - a native ad can be bound to multiple views without being
- * "consumed" the way a full-screen ad is on `show()`, so it has no use for
- * [CachedAdLoaderBase]'s `consumeCachedAd()`/`preloadIfEnabled()`). Banner is the only ad type that
- * never expires, per the design's Global Constraint - a banner is meant to be displayed and
- * self-refreshed by the SDK immediately upon load, not cached ahead of time and shown later - so it
- * stays on [SimpleCachedAdLoaderBase] directly.
+ * Dùng chung cho mọi loại ad bị "cũ" (stale) sau khi cache: full-screen ad và Rewarded (qua
+ * [CachedAdLoaderBase], có thêm các helper "tiêu thụ" khi show() mà các loại ad "chỉ show 1 lần"
+ * này cần) và Native (trực tiếp - một native ad có thể gắn vào nhiều view mà không bị "tiêu thụ"
+ * như full-screen ad khi `show()`, nên không cần đến `consumeCachedAd()`/`preloadIfEnabled()` của
+ * [CachedAdLoaderBase]). Banner là loại ad duy nhất không bao giờ hết hạn, theo Global Constraint
+ * của thiết kế - banner được hiển thị và tự refresh bởi SDK ngay khi load xong, không cache trước
+ * rồi show sau - nên nó dùng trực tiếp [SimpleCachedAdLoaderBase].
  */
 abstract class ExpiringCachedAdLoaderBase<TAd : Any>(
     config: PlacementConfig,
@@ -32,8 +31,8 @@ abstract class ExpiringCachedAdLoaderBase<TAd : Any>(
         return cachedAd != null && ageMs < config.expiryMs
     }
 
-    /** Drops the cached ad once it's past [PlacementConfig.expiryMs], rather than holding onto a
-     * stale reference until the next successful load overwrites it. */
+    /** Drop cached ad khi đã quá [PlacementConfig.expiryMs], thay vì giữ một reference cũ (stale)
+     * cho đến khi lần load thành công tiếp theo ghi đè lên nó. */
     protected fun dropIfExpired() {
         if (cachedAd != null && nowProvider() - loadedAtMs >= config.expiryMs) {
             cachedAd = null

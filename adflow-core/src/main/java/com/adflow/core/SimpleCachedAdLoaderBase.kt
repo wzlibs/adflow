@@ -1,13 +1,12 @@
 package com.adflow.core
 
 /**
- * Owns the "load, cache, retry" lifecycle shared by every ad type that caches a single ad instance
- * ahead of use: the enabled/loadRule checks, the isReady() short-circuit that skips a redundant
- * waterfall pass, and caching the ad on a successful load. [ExpiringCachedAdLoaderBase] extends
- * this to add expiry (dropping the ad once stale, recording a load timestamp via [onLoaded]) for
- * the ad types that go stale (full-screen, Rewarded, Native); Banner uses this class directly,
- * since per the design's Global Constraint it never goes stale once cached and doesn't need that
- * bookkeeping.
+ * Nắm giữ vòng đời "load, cache, retry" dùng chung cho mọi loại ad cache trước 1 instance ad để
+ * dùng sau: check enabled/loadRule, short-circuit isReady() để bỏ qua 1 lượt waterfall dư thừa, và
+ * cache ad khi load thành công. [ExpiringCachedAdLoaderBase] extend class này để thêm expiry (drop
+ * ad khi đã cũ, ghi lại timestamp load qua [onLoaded]) cho các loại ad bị cũ (full-screen,
+ * Rewarded, Native); Banner dùng trực tiếp class này, vì theo Global Constraint của thiết kế, nó
+ * không bao giờ bị cũ sau khi cache nên không cần phần bookkeeping đó.
  */
 abstract class SimpleCachedAdLoaderBase<TAd : Any>(
     protected val config: PlacementConfig,
@@ -27,8 +26,8 @@ abstract class SimpleCachedAdLoaderBase<TAd : Any>(
 
     open fun isReady(): Boolean = cachedAd != null
 
-    /** Called once a load succeeds, after [cachedAd] is already set to the new ad. No-op here;
-     * [CachedAdLoaderBase] overrides it to record the load timestamp for expiry tracking. */
+    /** Được gọi khi 1 lần load thành công, sau khi [cachedAd] đã được set thành ad mới. Ở đây là
+     * no-op; [CachedAdLoaderBase] override để ghi lại timestamp load phục vụ expiry tracking. */
     protected open fun onLoaded(ad: TAd) {}
 
     open fun load(onResult: (AdLoadResult) -> Unit) {
@@ -47,11 +46,11 @@ abstract class SimpleCachedAdLoaderBase<TAd : Any>(
             return
         }
         loader.start { result, ad ->
-            // Guarded by identity, not just success+non-null: RetryingAdLoader coalesces every
-            // load() call made while a cycle is in flight onto that same cycle, so this callback
-            // can run more than once per genuine load, one per coalesced caller, all with the same
-            // (result, ad). Only the first must actually cache it and fire onLoaded(); the rest
-            // just need to deliver onResult() to their own caller.
+            // Guard bằng identity, không chỉ success+non-null: RetryingAdLoader coalesce mọi lệnh
+            // load() gọi trong lúc 1 cycle đang chạy vào cùng cycle đó, nên callback này có thể
+            // chạy nhiều hơn 1 lần cho 1 lần load thật, mỗi lần cho 1 caller được coalesce, tất cả
+            // cùng nhận (result, ad) giống nhau. Chỉ lần đầu tiên mới thực sự cache và gọi
+            // onLoaded(); các lần sau chỉ cần gọi onResult() cho đúng caller của nó.
             if (result is AdLoadResult.Success && ad != null && cachedAd !== ad) {
                 cachedAd = ad
                 onLoaded(ad)

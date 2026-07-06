@@ -125,11 +125,11 @@ class AppOpenAdControllerTest {
         val appOpen = FakeAppOpenAdManager(ready = true)
         val controller = AppOpenAdController(application, appOpen)
         controller.start()
-        controller.start() // must not create a second, independent registration
-        controller.stop() // a single stop() must be enough to fully undo both start() calls
+        controller.start() // không được tạo ra 1 đăng ký độc lập thứ 2
+        controller.stop() // 1 lần stop() phải đủ để undo cả 2 lần gọi start()
 
-        // If start() had registered activityCallbacks twice, one stop() would leave one
-        // registration dangling, and this resume would still capture currentActivity.
+        // Nếu start() đã đăng ký activityCallbacks 2 lần, 1 lần stop() sẽ để lại 1 đăng ký còn
+        // sót, và resume này vẫn sẽ capture currentActivity.
         Robolectric.buildActivity(Activity::class.java).create().start().resume()
         controller.showIfPossible()
 

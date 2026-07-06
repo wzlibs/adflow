@@ -3,9 +3,9 @@ package com.adflow.admob
 import com.google.android.gms.ads.AdValue
 
 /**
- * Maps AdMob's [AdValue.PrecisionType] constant to the human-readable name used in
- * [com.adflow.core.AdRevenueEvent.precision]. Shared by every AdMob*AdManager so the mapping
- * isn't copy-pasted per ad type.
+ * Map hằng số [AdValue.PrecisionType] của AdMob sang tên dễ đọc dùng trong
+ * [com.adflow.core.AdRevenueEvent.precision]. Dùng chung cho mọi AdMob*AdManager để không phải
+ * copy-paste việc mapping này cho mỗi loại ad.
  */
 internal fun precisionName(@AdValue.PrecisionType precisionType: Int): String = when (precisionType) {
     AdValue.PrecisionType.PRECISE -> "PRECISE"

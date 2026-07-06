@@ -26,11 +26,11 @@ class AdFlowCoreTest {
     fun `tryClaimFullScreenSlot fails while the slot is already claimed, until released`() {
         assertTrue(AdFlowCore.tryClaimFullScreenSlot())
 
-        assertFalse(AdFlowCore.tryClaimFullScreenSlot()) // already taken - must not steal or double-claim
-        assertTrue(AdFlowCore.isShowingFullScreenAd) // still held by the original claimant
+        assertFalse(AdFlowCore.tryClaimFullScreenSlot()) // đã bị chiếm - không được cướp hoặc claim đôi
+        assertTrue(AdFlowCore.isShowingFullScreenAd) // vẫn do người claim đầu tiên giữ
 
         AdFlowCore.releaseFullScreenSlot()
-        assertTrue(AdFlowCore.tryClaimFullScreenSlot()) // free again, so a new claim can succeed
+        assertTrue(AdFlowCore.tryClaimFullScreenSlot()) // trống lại, nên 1 lần claim mới có thể thành công
     }
 
     @Test

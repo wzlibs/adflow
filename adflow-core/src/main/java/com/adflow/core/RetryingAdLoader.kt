@@ -1,14 +1,13 @@
 package com.adflow.core
 
 /**
- * Drives a single [WaterfallLoader] pass for a placement and, on failure, retries the whole
- * waterfall again after [RetryPolicy.delayForAttempt] via [scheduleRetry], up to
- * [RetryPolicy.maxRetries].
+ * Chạy một lượt [WaterfallLoader] cho 1 placement, và khi thất bại, retry lại toàn bộ waterfall
+ * sau [RetryPolicy.delayForAttempt] qua [scheduleRetry], tối đa [RetryPolicy.maxRetries] lần.
  *
- * This is the shared "load + retry-with-backoff-until-exhausted" state machine used by every ad
- * type that retries (full-screen managers via [FullScreenAdManagerBase], plus banner/native/
- * rewarded managers in adapter modules). It intentionally knows nothing about caching the loaded
- * ad, timestamping it, or expiry - callers decide what to do with a successfully loaded ad.
+ * Đây là state machine "load + retry-with-backoff-until-exhausted" dùng chung cho mọi loại ad có
+ * retry (full-screen manager qua [FullScreenAdManagerBase], cùng banner/native/rewarded manager ở
+ * các module adapter). Nó chủ ý không biết gì về việc cache ad đã load, đánh timestamp, hay
+ * expiry - caller tự quyết định làm gì với ad load thành công.
  */
 class RetryingAdLoader<TAd>(
     private val config: PlacementConfig,
@@ -23,16 +22,15 @@ class RetryingAdLoader<TAd>(
     private val pendingCallbacks = mutableListOf<(AdLoadResult, TAd?) -> Unit>()
 
     /**
-     * Starts a load: if one is already in flight (mid-retry-backoff), [onResult] is coalesced onto
-     * that in-flight attempt instead of starting a second, independent waterfall pass - it does not
-     * join by re-running requestAd itself, it just waits for the same cycle's outcome. Every
-     * [onResult] registered this way is invoked exactly once, with that cycle's eventual result,
-     * once it finishes.
+     * Bắt đầu một lần load: nếu đã có 1 lần đang chạy (mid-retry-backoff), [onResult] được
+     * coalesce vào lần đang chạy đó thay vì khởi động một lượt waterfall độc lập thứ 2 - nó không
+     * "join" bằng cách tự gọi lại requestAd, mà chỉ đợi kết quả của cùng 1 cycle đó. Mỗi [onResult]
+     * đăng ký theo cách này được gọi đúng 1 lần, với kết quả cuối cùng của cycle đó, khi nó xong.
      */
-    // start()/finish() are synchronized so the check-then-set on isRunning (and the shared
-    // pendingCallbacks/retryAttempt state) is atomic across threads, not just within a single
-    // thread's sequential re-entrancy - requestAd() callbacks are not guaranteed to land on the
-    // caller's original thread.
+    // start()/finish() được synchronized để việc check-rồi-set trên isRunning (và state chung
+    // pendingCallbacks/retryAttempt) là atomic giữa các thread, không chỉ đúng trong trường hợp
+    // gọi lại tuần tự trên cùng 1 thread - callback của requestAd() không được đảm bảo chạy trên
+    // đúng thread gốc của caller.
     @Synchronized
     fun start(onResult: (AdLoadResult, TAd?) -> Unit) {
         pendingCallbacks += onResult

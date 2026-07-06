@@ -48,14 +48,14 @@ class RetryingAdLoaderTest {
         var result: AdLoadResult? = null
         loader.start { r, _ -> result = r }
 
-        // First waterfall pass tried both ad units and failed; scheduled exactly one retry.
+        // Lượt waterfall đầu tiên thử cả 2 ad unit và fail; đã schedule đúng 1 lần retry.
         assertEquals(2, attempts)
-        assertEquals(null, result) // still retrying, waiting on the scheduler
+        assertEquals(null, result) // vẫn đang retry, chờ scheduler
         assertEquals(1, fakeScheduler.size)
 
-        fakeScheduler.removeAt(0).invoke() // run the retry synchronously
+        fakeScheduler.removeAt(0).invoke() // chạy lần retry đồng bộ
 
-        // Retry re-ran the whole waterfall (2 more attempts) then exhausted retries.
+        // Retry chạy lại toàn bộ waterfall (2 attempt nữa) rồi hết retry.
         assertEquals(4, attempts)
         assertTrue(result is AdLoadResult.Failure)
     }
@@ -78,19 +78,19 @@ class RetryingAdLoaderTest {
         var firstResult: AdLoadResult? = null
         var secondResult: AdLoadResult? = null
         loader.start { r, _ -> firstResult = r }
-        assertEquals(1, fakeScheduler.size) // first pass failed, one retry scheduled, still in flight
+        assertEquals(1, fakeScheduler.size) // lượt đầu fail, đã schedule 1 retry, vẫn đang chạy
 
-        // A second caller starts a load while the first is still retrying - it must not start a
-        // second, independent waterfall pass, but it must still be notified once the in-flight
-        // cycle finishes instead of being silently dropped forever.
+        // Một caller thứ 2 bắt đầu load trong lúc caller đầu vẫn đang retry - không được chạy
+        // thêm 1 waterfall độc lập, nhưng vẫn phải được thông báo khi cycle đang chạy đó kết thúc,
+        // không được âm thầm rơi mất vĩnh viễn.
         loader.start { r, _ -> secondResult = r }
-        assertEquals(1, fakeScheduler.size) // still no second, independent retry was scheduled
+        assertEquals(1, fakeScheduler.size) // vẫn không có retry độc lập thứ 2 nào được schedule
 
-        fakeScheduler.removeAt(0).invoke() // run the retry synchronously; retries are exhausted after this
+        fakeScheduler.removeAt(0).invoke() // chạy lần retry đồng bộ; hết retry sau lần này
 
         assertTrue(firstResult is AdLoadResult.Failure)
-        assertTrue(secondResult is AdLoadResult.Failure) // coalesced callback fires too, not dropped
-        assertEquals(2, attempts) // still only ONE waterfall pass (1 ad unit) x 2 attempts (initial + 1 retry)
+        assertTrue(secondResult is AdLoadResult.Failure) // callback được coalesce cũng được gọi, không bị rơi mất
+        assertEquals(2, attempts) // vẫn chỉ CHẠY 1 waterfall pass (1 ad unit) x 2 attempt (ban đầu + 1 retry)
     }
 
     @Test
@@ -106,8 +106,8 @@ class RetryingAdLoaderTest {
         loader.start { r, _ -> firstResult = r }
         assertEquals(AdLoadResult.Success, firstResult)
 
-        // isRunning must reset to false once the cycle finishes, so a later, independent start()
-        // is free to run its own waterfall pass rather than being mistaken for still in flight.
+        // isRunning phải reset về false khi cycle kết thúc, để 1 lần start() độc lập sau đó được
+        // tự do chạy waterfall riêng của nó, không bị nhầm là vẫn đang chạy.
         var secondResult: AdLoadResult? = null
         loader.start { r, _ -> secondResult = r }
         assertEquals(AdLoadResult.Success, secondResult)

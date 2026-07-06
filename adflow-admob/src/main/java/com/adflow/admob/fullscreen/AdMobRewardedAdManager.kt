@@ -22,15 +22,15 @@ import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 
 /**
- * [RewardedAdManager] implementation backed by AdMob's [RewardedAd].
+ * Triển khai [RewardedAdManager] dựa trên [RewardedAd] của AdMob.
  *
- * Shares the load/cache/expiry/retry/preload lifecycle with full-screen managers via
- * [CachedAdLoaderBase] - only `show()` differs, since [RewardedAdManager.show] takes a
- * [RewardedAdCallback] (which additionally surfaces [RewardedAdCallback.onUserEarnedReward])
- * rather than the plain `ShowCallback` [com.adflow.core.FullScreenAdManagerBase] is built around.
+ * Dùng chung vòng đời load/cache/expiry/retry/preload với các full-screen manager qua
+ * [CachedAdLoaderBase] - chỉ `show()` khác, vì [RewardedAdManager.show] nhận
+ * [RewardedAdCallback] (có thêm [RewardedAdCallback.onUserEarnedReward]) thay vì `ShowCallback`
+ * thông thường mà [com.adflow.core.FullScreenAdManagerBase] dùng.
  *
- * Rewarded ads are intentionally NOT subject to [com.adflow.core.AdShowIntervalPolicy] frequency
- * capping - that policy only applies to interstitial/app open ads by design.
+ * Rewarded ad CHỦ Ý không bị giới hạn tần suất bởi [com.adflow.core.AdShowIntervalPolicy] -
+ * policy đó theo thiết kế chỉ áp dụng cho interstitial/app open.
  */
 open class AdMobRewardedAdManager(
     private val context: Context,
@@ -61,8 +61,8 @@ open class AdMobRewardedAdManager(
 
     override fun show(activity: Activity, callback: RewardedAdCallback) {
         if (checkNotReadyOrShowRuleBlocked(callback)) return
-        // Claimed before consuming the cached ad so a losing claim never sacrifices it: two
-        // full-screen ads (even from different managers) must never be on screen at once.
+        // Claim trước khi consume cached ad, để nếu claim thất bại thì cached ad không bị mất
+        // oan: 2 full-screen ad (dù từ manager khác nhau) không bao giờ được cùng hiển thị.
         if (!AdFlowCore.tryClaimFullScreenSlot()) {
             AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "another full-screen ad is showing")
             callback.onShowBlocked(BlockReason.ANOTHER_AD_SHOWING)
@@ -75,8 +75,8 @@ open class AdMobRewardedAdManager(
             override fun onAdDismissedFullScreenContent() {
                 AdFlowCore.releaseFullScreenSlot()
                 callback.onAdDismissed()
-                // Preload the next ad once this one is actually done, not the instant show() was
-                // called - the display duration is out of our control.
+                // Preload ad tiếp theo khi ad này thực sự đã xong, không phải ngay lúc show() được
+                // gọi - thời gian hiển thị không do ta kiểm soát.
                 preloadIfEnabled()
             }
 
@@ -93,16 +93,16 @@ open class AdMobRewardedAdManager(
                 callback.onUserEarnedReward(RewardItem(rewardItem.type, rewardItem.amount))
             }
         } catch (e: Throwable) {
-            // ad.show() is expected to report failure via onAdFailedToShowFullScreenContent, not
-            // throw - but if the SDK ever does throw synchronously, the slot must not stay claimed
-            // forever (which would silently disable AppOpenAdController and every other
-            // full-screen show for the rest of the process).
+            // ad.show() được kỳ vọng báo lỗi qua onAdFailedToShowFullScreenContent, không throw -
+            // nhưng nếu SDK vẫn throw đồng bộ, slot không được giữ mãi ở trạng thái đã claim (nếu
+            // không sẽ âm thầm vô hiệu hóa AppOpenAdController và mọi full-screen show khác cho
+            // tới hết đời process).
             AdFlowCore.releaseFullScreenSlot()
-            // The consumed ad is gone and its state after a synchronous SDK throw is unknown, so
-            // self-heal with a fresh load - same as the expired/not-ready path - instead of leaving
-            // the placement stuck reporting not-ready until an unrelated caller happens to load()
-            // again. Unconditional (not gated on preloadEnabled): this is recovery from a failure,
-            // not the ahead-of-time preload preloadIfEnabled() is for.
+            // Ad đã bị consume và trạng thái của nó sau khi SDK throw đồng bộ là không xác định,
+            // nên tự phục hồi (self-heal) bằng 1 lần load mới - giống hướng xử lý ad hết hạn/chưa
+            // ready - thay vì để placement bị kẹt ở trạng thái not-ready cho đến khi có caller
+            // khác vô tình gọi load(). Không điều kiện (không phụ thuộc preloadEnabled): đây là
+            // phục hồi sau lỗi, không phải preload chủ động mà preloadIfEnabled() dùng cho.
             load {}
             throw e
         }

@@ -12,7 +12,7 @@ class AdFlowDemoApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        AdFlowCore.configure(logger = LogcatAdFlowLogger(tag = "AdFlow"))
+        AdFlowCore.configure(logger = LogcatAdFlowLogger(tag = "AdFlowDebug"))
         placements = DemoAdPlacements(this)
         placements.provider.initialize(this) {
             placements.splashInterstitial.load()
@@ -22,9 +22,9 @@ class AdFlowDemoApp : Application() {
             placements.banner.load()
             placements.native.load()
         }
-        // Shows the App Open ad whenever the app returns to the foreground - never on top of
-        // another full-screen ad, and gated by the usual show-interval/showRule checks inside
-        // AppOpenAdManager.show() like any other App Open display.
+        // Tự động show App Open ad mỗi khi app quay lại foreground - không bao giờ đè lên full-screen
+        // ad khác, và vẫn bị chặn bởi các check show-interval/showRule thông thường trong
+        // AppOpenAdManager.show() giống mọi lần hiển thị App Open khác.
         AppOpenAdController(this, placements.appOpen).start()
     }
 }

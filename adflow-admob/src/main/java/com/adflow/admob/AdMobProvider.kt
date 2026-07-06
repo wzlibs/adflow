@@ -17,11 +17,11 @@ import com.google.android.gms.ads.MobileAds
 
 class AdMobProvider(context: Context) : AdNetworkProvider {
 
-    // Resolved once, up front: every manager below is long-lived (typically for the whole
-    // process), so storing whatever Context the caller happened to pass - e.g. an Activity -
-    // would leak it for that lifetime and keep loading ads with a stale context after it's
-    // destroyed. The Application context is always safe for the SDK's load()/AdLoader calls;
-    // show() and view-attachment already take their own fresh Activity/Context per call.
+    // Resolve ngay từ đầu: mọi manager dưới đây đều tồn tại lâu dài (thường là suốt cả process),
+    // nên nếu lưu nguyên Context mà caller truyền vào - ví dụ 1 Activity - sẽ leak nó suốt vòng
+    // đời đó và tiếp tục load ad bằng context cũ sau khi nó đã destroy. Application context luôn
+    // an toàn cho các lệnh load()/AdLoader của SDK; show() và việc gắn view đã tự nhận
+    // Activity/Context mới cho từng lần gọi riêng.
     internal val context: Context = context.applicationContext
 
     override fun initialize(context: Context, onComplete: () -> Unit) {

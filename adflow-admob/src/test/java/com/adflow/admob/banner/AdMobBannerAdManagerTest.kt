@@ -14,11 +14,11 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
 /**
- * Proves that AdMobBannerAdManager now retries the waterfall with backoff on no-fill (via the
- * shared com.adflow.core.RetryingAdLoader) instead of giving up after a single pass, while
- * isReady() stays a plain non-null check with no expiry - unlike every other ad type, a banner is
- * meant to be displayed and self-refreshed by the SDK immediately upon load, not cached ahead of
- * time and shown later, so it never goes stale while waiting.
+ * Chứng minh AdMobBannerAdManager giờ đã retry waterfall với backoff khi no-fill (qua
+ * com.adflow.core.RetryingAdLoader dùng chung) thay vì bỏ cuộc sau 1 lượt duy nhất, trong khi
+ * isReady() vẫn chỉ là 1 check non-null đơn giản, không có expiry - khác với mọi loại ad khác,
+ * banner được thiết kế để hiển thị và tự refresh bởi SDK ngay khi load xong, không cache trước rồi
+ * show sau, nên nó không bao giờ bị cũ (stale) trong lúc chờ.
  */
 @RunWith(RobolectricTestRunner::class)
 class AdMobBannerAdManagerTest {
