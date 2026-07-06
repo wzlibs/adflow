@@ -60,6 +60,10 @@ open class AdMobRewardedAdManager(
         cachedAd != null && nowProvider() - loadedAtMs < config.expiryMs
 
     override fun load(onResult: (AdLoadResult) -> Unit) {
+        if (isReady()) {
+            onResult(AdLoadResult.Success)
+            return
+        }
         if (!config.enabled) {
             AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.LOAD_FAILED, "disabled")
             onResult(AdLoadResult.Failure(AdFlowError(-1, "placement disabled")))
@@ -113,23 +117,24 @@ open class AdMobRewardedAdManager(
     }
 
     override fun show(activity: Activity, callback: RewardedAdCallback) {
-        val ad = cachedAd
-        if (ad == null) {
-            AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "not ready")
-            callback.onShowBlocked(BlockReason.NOT_READY)
+        if (!isReady()) {
+            // isReady() is the single source of truth for whether the cached ad is usable, whether
+            // it never loaded or went stale past expiryMs; cachedAd != null here only distinguishes
+            // which callback signal fits. Always kick off a fresh load(): it's a no-op if one is
+            // already in flight, and otherwise this placement would silently report NOT_READY /
+            // expired forever, since nothing else ever re-triggers a load once the cached ad expires
+            // unshown.
+            if (cachedAd != null) {
+                AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.EXPIRED)
+                callback.onAdExpired()
+            } else {
+                AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "not ready")
+                callback.onShowBlocked(BlockReason.NOT_READY)
+            }
             load()
             return
         }
-        if (nowProvider() - loadedAtMs >= config.expiryMs) {
-            // The cached ad went stale before anyone called show(). Drop it and kick off a fresh
-            // load - otherwise this placement would silently report NOT_READY/expired forever,
-            // since nothing else ever re-triggers a load once the cached ad expires unshown.
-            cachedAd = null
-            AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.EXPIRED)
-            callback.onAdExpired()
-            load()
-            return
-        }
+        val ad = requireNotNull(cachedAd)
         if (config.showRule?.isAllowed(placementId) == false) {
             AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "showRule rejected")
             callback.onShowBlocked(BlockReason.RULE_REJECTED)

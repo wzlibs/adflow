@@ -48,6 +48,26 @@ class FullScreenAdManagerBaseTest {
     }
 
     @Test
+    fun `load is a no-op success when a fresh ad is already cached`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        var requestCount = 0
+        val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                requestCount += 1
+                onResult(Result.success("ad-$requestCount"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {}
+        }
+        manager.load {}
+        assertEquals(1, requestCount)
+
+        var result: AdLoadResult? = null
+        manager.load { result = it }
+        assertEquals(1, requestCount) // still fresh - load() must not start a second waterfall
+        assertEquals(AdLoadResult.Success, result)
+    }
+
+    @Test
     fun `falls through the waterfall then reports failure once retries are exhausted`() {
         val fakeScheduler = mutableListOf<() -> Unit>()
         val config = PlacementConfig(
