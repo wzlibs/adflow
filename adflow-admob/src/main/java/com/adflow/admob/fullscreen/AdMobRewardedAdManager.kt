@@ -59,6 +59,14 @@ open class AdMobRewardedAdManager(
     override fun isReady(): Boolean =
         cachedAd != null && nowProvider() - loadedAtMs < config.expiryMs
 
+    /** Drops the cached ad once it's past [PlacementConfig.expiryMs], rather than holding onto a
+     * stale reference until the next successful load overwrites it. */
+    private fun dropIfExpired() {
+        if (cachedAd != null && nowProvider() - loadedAtMs >= config.expiryMs) {
+            cachedAd = null
+        }
+    }
+
     override fun load(onResult: (AdLoadResult) -> Unit) {
         if (!config.enabled) {
             AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.LOAD_FAILED, "disabled")
@@ -117,15 +125,11 @@ open class AdMobRewardedAdManager(
     }
 
     override fun show(activity: Activity, callback: RewardedAdCallback) {
+        // Captured before dropIfExpired() so it still reflects pre-drop state: it's what tells the
+        // not-ready branch below whether to report "expired" vs "never ready" to the caller.
+        val wasCached = cachedAd != null
+        dropIfExpired()
         if (!isReady()) {
-            // isReady() is the single source of truth for whether the cached ad is usable, whether
-            // it never loaded or went stale past expiryMs; wasCached only distinguishes which
-            // callback signal fits. Drop any stale ad rather than holding onto it until the next
-            // successful load, and always kick off a fresh load(): it's a no-op if one is already in
-            // flight, and otherwise this placement would silently report NOT_READY/expired forever,
-            // since nothing else ever re-triggers a load once the cached ad expires unshown.
-            val wasCached = cachedAd != null
-            cachedAd = null
             if (wasCached) {
                 AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.EXPIRED)
                 callback.onAdExpired()
@@ -133,6 +137,8 @@ open class AdMobRewardedAdManager(
                 AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "not ready")
                 callback.onShowBlocked(BlockReason.NOT_READY)
             }
+            // Self-heal: retrigger a load so this placement doesn't stay stuck reporting not-ready
+            // forever - it's a no-op if one is already in flight, via load()'s isLoading guard.
             load()
             return
         }
