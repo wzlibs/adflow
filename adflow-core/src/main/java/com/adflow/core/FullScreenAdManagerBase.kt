@@ -9,10 +9,6 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
 
     protected abstract fun performShow(ad: TAd, activity: Activity, callback: ShowCallback)
 
-    override fun isReady(): Boolean = super.isReady()
-
-    override fun load(onResult: (AdLoadResult) -> Unit) = super.load(onResult)
-
     override fun show(activity: Activity, callback: ShowCallback) {
         dropIfExpired()
         if (!isReady()) {

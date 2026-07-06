@@ -6,7 +6,6 @@ import com.adflow.admob.precisionName
 import com.adflow.core.AdFlowCore
 import com.adflow.core.AdFlowError
 import com.adflow.core.AdFlowEvent
-import com.adflow.core.AdLoadResult
 import com.adflow.core.AdRevenueEvent
 import com.adflow.core.AdType
 import com.adflow.core.BlockReason
@@ -41,10 +40,6 @@ open class AdMobRewardedAdManager(
 ) : CachedAdLoaderBase<RewardedAd>(config, AdType.REWARDED), RewardedAdManager {
 
     private val placementId = config.placementId
-
-    override fun isReady(): Boolean = super.isReady()
-
-    override fun load(onResult: (AdLoadResult) -> Unit) = super.load(onResult)
 
     override fun requestAd(adUnitId: String, onResult: (Result<RewardedAd>) -> Unit) {
         RewardedAd.load(
