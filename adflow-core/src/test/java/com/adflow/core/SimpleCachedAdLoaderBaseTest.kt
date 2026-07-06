@@ -106,4 +106,31 @@ class SimpleCachedAdLoaderBaseTest {
         assertTrue(ruleResult is AdLoadResult.Failure)
         assertEquals(0, requestCount)
     }
+
+    @Test
+    fun `onLoaded fires exactly once per genuine new load, after cachedAd is already set`() {
+        var onLoadedCallCount = 0
+        var cachedAdWhenOnLoadedFired: String? = null
+        val manager = object : SimpleCachedAdLoaderBase<String>(
+            PlacementConfig(placementId = "p1", adUnitIds = listOf("A")),
+            AdType.BANNER,
+        ) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                onResult(Result.success("ad-A"))
+            }
+
+            override fun onLoaded(ad: String) {
+                onLoadedCallCount += 1
+                cachedAdWhenOnLoadedFired = cachedAd // must already reflect the just-loaded ad
+            }
+        }
+
+        manager.load {}
+        assertEquals(1, onLoadedCallCount)
+        assertEquals("ad-A", cachedAdWhenOnLoadedFired)
+
+        // isReady() shortcut - a redundant load() while already cached must not fire onLoaded again.
+        manager.load {}
+        assertEquals(1, onLoadedCallCount)
+    }
 }
