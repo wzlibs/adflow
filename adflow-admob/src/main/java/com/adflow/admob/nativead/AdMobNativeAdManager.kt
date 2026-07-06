@@ -2,17 +2,13 @@ package com.adflow.admob.nativead
 
 import android.content.Context
 import android.view.View
-import com.adflow.admob.precisionName
-import com.adflow.core.AdFlowCore
-import com.adflow.core.AdFlowError
-import com.adflow.core.AdLoadResult
-import com.adflow.core.AdRevenueEvent
+import com.adflow.admob.dispatchRevenue
 import com.adflow.core.AdType
 import com.adflow.core.NativeAdAssets
 import com.adflow.core.NativeAdManager
 import com.adflow.core.NativeAdRenderer
 import com.adflow.core.PlacementConfig
-import com.adflow.core.RetryingAdLoader
+import com.adflow.core.SimpleCachedAdLoaderBase
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
@@ -23,54 +19,16 @@ import com.google.android.gms.ads.nativead.NativeAdView
 
 open class AdMobNativeAdManager(
     private val context: Context,
-    private val config: PlacementConfig,
-) : NativeAdManager {
+    config: PlacementConfig,
+) : SimpleCachedAdLoaderBase<NativeAd>(config, AdType.NATIVE), NativeAdManager {
 
-    private var cachedAd: NativeAd? = null
+    private val placementId = config.placementId
 
-    private val loader: RetryingAdLoader<NativeAd> =
-        RetryingAdLoader(config, AdType.NATIVE) { adUnitId, onResult -> requestAd(adUnitId, onResult) }
-
-    internal var scheduleRetry: (delayMs: Long, action: () -> Unit) -> Unit
-        get() = loader.scheduleRetry
-        set(value) { loader.scheduleRetry = value }
-
-    // Native ads are never subject to expiry (unlike full-screen/rewarded ads): readiness is a
-    // plain non-null check, per the AdFlow design constraint that only full-screen ad types stale.
-    override fun isReady(): Boolean = cachedAd != null
-
-    override fun load(onResult: (AdLoadResult) -> Unit) {
-        if (!config.enabled) {
-            onResult(AdLoadResult.Failure(AdFlowError(-1, "placement disabled")))
-            return
-        }
-        if (config.loadRule?.isAllowed(config.placementId) == false) {
-            onResult(AdLoadResult.Failure(AdFlowError(-2, "load rule rejected")))
-            return
-        }
-        loader.start { result, ad ->
-            if (result is AdLoadResult.Success && ad != null) {
-                cachedAd = ad
-            }
-            onResult(result)
-        }
-    }
-
-    internal open fun requestAd(adUnitId: String, onResult: (Result<NativeAd>) -> Unit) {
-        val loader = AdLoader.Builder(context, adUnitId)
+    override fun requestAd(adUnitId: String, onResult: (Result<NativeAd>) -> Unit) {
+        val adLoader = AdLoader.Builder(context, adUnitId)
             .forNativeAd { nativeAd ->
                 nativeAd.setOnPaidEventListener { adValue ->
-                    AdFlowCore.dispatchRevenue(
-                        AdRevenueEvent(
-                            placementId = config.placementId,
-                            adType = AdType.NATIVE,
-                            adUnitId = adUnitId,
-                            valueMicros = adValue.valueMicros,
-                            currencyCode = adValue.currencyCode,
-                            precision = precisionName(adValue.precisionType),
-                            adNetwork = nativeAd.responseInfo?.loadedAdapterResponseInfo?.adSourceName,
-                        ),
-                    )
+                    dispatchRevenue(placementId, AdType.NATIVE, adUnitId, adValue, nativeAd.responseInfo)
                 }
                 onResult(Result.success(nativeAd))
             }
@@ -80,7 +38,7 @@ open class AdMobNativeAdManager(
                 }
             })
             .build()
-        loader.loadAd(AdRequest.Builder().build())
+        adLoader.loadAd(AdRequest.Builder().build())
     }
 
     override fun createView(context: Context, renderer: NativeAdRenderer): View {
