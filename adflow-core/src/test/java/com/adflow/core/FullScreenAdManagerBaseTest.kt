@@ -295,4 +295,27 @@ class FullScreenAdManagerBaseTest {
         manager.show(activity, ShowCallback.NONE)
         assertFalse(AdFlowCore.isShowingFullScreenAd)
     }
+
+    @Test
+    fun `AdFlowCore isShowingFullScreenAd is cleared even if performShow throws synchronously`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                onResult(Result.success("ad-A"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+                throw IllegalStateException("SDK blew up")
+            }
+        }
+        manager.load {}
+
+        try {
+            manager.show(activity, ShowCallback.NONE)
+            org.junit.Assert.fail("expected the exception to propagate")
+        } catch (e: IllegalStateException) {
+            // expected - the exception must still propagate, not be swallowed
+        }
+
+        assertFalse(AdFlowCore.isShowingFullScreenAd) // must not be left stuck true
+    }
 }

@@ -20,29 +20,37 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
         AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOWN)
         // Tracked so AppOpenAdController never shows an App Open ad on top of this one.
         AdFlowCore.setShowingFullScreenAd(true)
-        performShow(
-            ad,
-            activity,
-            object : ShowCallback {
-                override fun onAdShown() = callback.onAdShown()
+        try {
+            performShow(
+                ad,
+                activity,
+                object : ShowCallback {
+                    override fun onAdShown() = callback.onAdShown()
 
-                override fun onAdDismissed() {
-                    // The interval cooldown starts once the user actually finishes viewing the ad,
-                    // not the instant we asked the SDK to display it: display duration varies per
-                    // ad and isn't something we control, so anchoring on "show" would under-count
-                    // the real gap between ads the user experiences.
-                    AdShowIntervalPolicy.recordShown(adType, nowProvider())
-                    AdFlowCore.setShowingFullScreenAd(false)
-                    callback.onAdDismissed()
-                    preloadIfEnabled()
-                }
+                    override fun onAdDismissed() {
+                        // The interval cooldown starts once the user actually finishes viewing the
+                        // ad, not the instant we asked the SDK to display it: display duration
+                        // varies per ad and isn't something we control, so anchoring on "show"
+                        // would under-count the real gap between ads the user experiences.
+                        AdShowIntervalPolicy.recordShown(adType, nowProvider())
+                        AdFlowCore.setShowingFullScreenAd(false)
+                        callback.onAdDismissed()
+                        preloadIfEnabled()
+                    }
 
-                override fun onAdFailedToShow(error: AdFlowError) {
-                    AdFlowCore.setShowingFullScreenAd(false)
-                    callback.onAdFailedToShow(error)
-                    preloadIfEnabled()
-                }
-            },
-        )
+                    override fun onAdFailedToShow(error: AdFlowError) {
+                        AdFlowCore.setShowingFullScreenAd(false)
+                        callback.onAdFailedToShow(error)
+                        preloadIfEnabled()
+                    }
+                },
+            )
+        } catch (e: Throwable) {
+            // performShow() is expected to report failure via onAdFailedToShow, not throw - but if
+            // the SDK ever does throw synchronously, the flag must not stay stuck true forever
+            // (which would silently disable AppOpenAdController for the rest of the process).
+            AdFlowCore.setShowingFullScreenAd(false)
+            throw e
+        }
     }
 }

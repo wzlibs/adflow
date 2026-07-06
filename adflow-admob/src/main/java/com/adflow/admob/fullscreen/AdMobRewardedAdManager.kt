@@ -82,8 +82,17 @@ open class AdMobRewardedAdManager(
         AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOWN)
         // Tracked so AppOpenAdController never shows an App Open ad on top of this one.
         AdFlowCore.setShowingFullScreenAd(true)
-        ad.show(activity) { rewardItem ->
-            callback.onUserEarnedReward(RewardItem(rewardItem.type, rewardItem.amount))
+        try {
+            ad.show(activity) { rewardItem ->
+                callback.onUserEarnedReward(RewardItem(rewardItem.type, rewardItem.amount))
+            }
+        } catch (e: Throwable) {
+            // ad.show() is expected to report failure via onAdFailedToShowFullScreenContent, not
+            // throw - but if the SDK ever does throw synchronously, the flag must not stay stuck
+            // true forever (which would silently disable AppOpenAdController for the rest of the
+            // process).
+            AdFlowCore.setShowingFullScreenAd(false)
+            throw e
         }
     }
 }
