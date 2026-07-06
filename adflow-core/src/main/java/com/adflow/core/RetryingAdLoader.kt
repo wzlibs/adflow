@@ -20,18 +20,19 @@ class RetryingAdLoader<TAd>(
 
     private var retryAttempt: Int = 0
     private var isRunning: Boolean = false
-    private var currentCallback: ((AdLoadResult, TAd?) -> Unit)? = null
+    private val pendingCallbacks = mutableListOf<(AdLoadResult, TAd?) -> Unit>()
 
     /**
-     * Starts a load, fire-and-forget: if one is already in flight (mid-retry-backoff), this call is
-     * ignored entirely and [onResult] is never invoked - it does not join the in-flight attempt or
-     * start a second, independent waterfall pass. Only the single [onResult] that started the
-     * current cycle is ever called, exactly once, when that cycle finishes.
+     * Starts a load: if one is already in flight (mid-retry-backoff), [onResult] is coalesced onto
+     * that in-flight attempt instead of starting a second, independent waterfall pass - it does not
+     * join by re-running requestAd itself, it just waits for the same cycle's outcome. Every
+     * [onResult] registered this way is invoked exactly once, with that cycle's eventual result,
+     * once it finishes.
      */
     fun start(onResult: (AdLoadResult, TAd?) -> Unit) {
+        pendingCallbacks += onResult
         if (isRunning) return
         isRunning = true
-        currentCallback = onResult
         retryAttempt = 0
         attempt()
     }
@@ -71,8 +72,8 @@ class RetryingAdLoader<TAd>(
 
     private fun finish(result: AdLoadResult, ad: TAd?) {
         isRunning = false
-        val callback = currentCallback
-        currentCallback = null
-        callback?.invoke(result, ad)
+        val callbacks = pendingCallbacks.toList()
+        pendingCallbacks.clear()
+        callbacks.forEach { it.invoke(result, ad) }
     }
 }

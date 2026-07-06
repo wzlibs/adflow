@@ -47,7 +47,12 @@ abstract class SimpleCachedAdLoaderBase<TAd : Any>(
             return
         }
         loader.start { result, ad ->
-            if (result is AdLoadResult.Success && ad != null) {
+            // Guarded by identity, not just success+non-null: RetryingAdLoader coalesces every
+            // load() call made while a cycle is in flight onto that same cycle, so this callback
+            // can run more than once per genuine load, one per coalesced caller, all with the same
+            // (result, ad). Only the first must actually cache it and fire onLoaded(); the rest
+            // just need to deliver onResult() to their own caller.
+            if (result is AdLoadResult.Success && ad != null && cachedAd !== ad) {
                 cachedAd = ad
                 onLoaded(ad)
             }

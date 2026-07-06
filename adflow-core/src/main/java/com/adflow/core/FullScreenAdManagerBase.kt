@@ -16,10 +16,15 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
             callback.onShowBlocked(BlockReason.INTERVAL_NOT_ELAPSED)
             return
         }
+        // Claimed before consuming the cached ad so a losing claim never sacrifices it: two
+        // full-screen ads (even from different managers) must never be on screen at once.
+        if (!AdFlowCore.tryClaimFullScreenSlot()) {
+            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "another full-screen ad is showing")
+            callback.onShowBlocked(BlockReason.ANOTHER_AD_SHOWING)
+            return
+        }
         val ad = consumeCachedAd()
         AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOWN)
-        // Tracked so AppOpenAdController never shows an App Open ad on top of this one.
-        AdFlowCore.setShowingFullScreenAd(true)
         try {
             performShow(
                 ad,
@@ -33,13 +38,13 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
                         // varies per ad and isn't something we control, so anchoring on "show"
                         // would under-count the real gap between ads the user experiences.
                         AdShowIntervalPolicy.recordShown(adType, nowProvider())
-                        AdFlowCore.setShowingFullScreenAd(false)
+                        AdFlowCore.releaseFullScreenSlot()
                         callback.onAdDismissed()
                         preloadIfEnabled()
                     }
 
                     override fun onAdFailedToShow(error: AdFlowError) {
-                        AdFlowCore.setShowingFullScreenAd(false)
+                        AdFlowCore.releaseFullScreenSlot()
                         callback.onAdFailedToShow(error)
                         preloadIfEnabled()
                     }
@@ -47,9 +52,16 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
             )
         } catch (e: Throwable) {
             // performShow() is expected to report failure via onAdFailedToShow, not throw - but if
-            // the SDK ever does throw synchronously, the flag must not stay stuck true forever
-            // (which would silently disable AppOpenAdController for the rest of the process).
-            AdFlowCore.setShowingFullScreenAd(false)
+            // the SDK ever does throw synchronously, the slot must not stay claimed forever (which
+            // would silently disable AppOpenAdController and every other full-screen show for the
+            // rest of the process).
+            AdFlowCore.releaseFullScreenSlot()
+            // The consumed ad is gone and its state after a synchronous SDK throw is unknown, so
+            // self-heal with a fresh load - same as the expired/not-ready path - instead of leaving
+            // the placement stuck reporting not-ready until an unrelated caller happens to load()
+            // again. Unconditional (not gated on preloadEnabled): this is recovery from a failure,
+            // not the ahead-of-time preload preloadIfEnabled() is for.
+            load {}
             throw e
         }
     }

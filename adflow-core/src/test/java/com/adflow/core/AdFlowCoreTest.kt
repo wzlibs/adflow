@@ -14,17 +14,28 @@ class AdFlowCoreTest {
     }
 
     @Test
-    fun `isShowingFullScreenAd reflects the most recent setShowingFullScreenAd call`() {
+    fun `tryClaimFullScreenSlot succeeds when free and reflects in isShowingFullScreenAd`() {
         assertFalse(AdFlowCore.isShowingFullScreenAd)
-        AdFlowCore.setShowingFullScreenAd(true)
+        assertTrue(AdFlowCore.tryClaimFullScreenSlot())
         assertTrue(AdFlowCore.isShowingFullScreenAd)
-        AdFlowCore.setShowingFullScreenAd(false)
+        AdFlowCore.releaseFullScreenSlot()
         assertFalse(AdFlowCore.isShowingFullScreenAd)
     }
 
     @Test
+    fun `tryClaimFullScreenSlot fails while the slot is already claimed, until released`() {
+        assertTrue(AdFlowCore.tryClaimFullScreenSlot())
+
+        assertFalse(AdFlowCore.tryClaimFullScreenSlot()) // already taken - must not steal or double-claim
+        assertTrue(AdFlowCore.isShowingFullScreenAd) // still held by the original claimant
+
+        AdFlowCore.releaseFullScreenSlot()
+        assertTrue(AdFlowCore.tryClaimFullScreenSlot()) // free again, so a new claim can succeed
+    }
+
+    @Test
     fun `reset() clears isShowingFullScreenAd back to false`() {
-        AdFlowCore.setShowingFullScreenAd(true)
+        AdFlowCore.tryClaimFullScreenSlot()
         AdFlowCore.reset()
         assertFalse(AdFlowCore.isShowingFullScreenAd)
     }

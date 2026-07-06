@@ -297,6 +297,41 @@ class FullScreenAdManagerBaseTest {
     }
 
     @Test
+    fun `show blocks a second full-screen ad from a different manager while one is already on screen`() {
+        val configA = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val configB = PlacementConfig(placementId = "p2", adUnitIds = listOf("B"))
+        val managerA = object : FullScreenAdManagerBase<String>(configA, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                onResult(Result.success("ad-A"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+                // Deliberately never dismisses - ad A stays on screen for the rest of this test.
+            }
+        }
+        var managerBShown = false
+        val managerB = object : FullScreenAdManagerBase<String>(configB, AdType.APP_OPEN) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                onResult(Result.success("ad-B"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+                managerBShown = true
+            }
+        }
+        managerA.load {}
+        managerB.load {}
+        managerA.show(activity, ShowCallback.NONE)
+
+        var blockedReason: BlockReason? = null
+        managerB.show(activity, object : ShowCallback {
+            override fun onShowBlocked(reason: BlockReason) { blockedReason = reason }
+        })
+
+        assertEquals(BlockReason.ANOTHER_AD_SHOWING, blockedReason)
+        assertFalse(managerBShown) // must never be displayed on top of ad A
+        assertTrue(managerB.isReady()) // the blocked attempt must not have consumed/lost its cached ad
+    }
+
+    @Test
     fun `AdFlowCore isShowingFullScreenAd is cleared even if performShow throws synchronously`() {
         val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
         val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
@@ -317,5 +352,35 @@ class FullScreenAdManagerBaseTest {
         }
 
         assertFalse(AdFlowCore.isShowingFullScreenAd) // must not be left stuck true
+    }
+
+    @Test
+    fun `a synchronous throw from performShow triggers a fresh load so the placement recovers`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        var loadCount = 0
+        val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                loadCount += 1
+                onResult(Result.success("ad-$loadCount"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+                throw IllegalStateException("SDK blew up")
+            }
+        }
+        manager.load {}
+        assertEquals(1, loadCount)
+
+        try {
+            manager.show(activity, ShowCallback.NONE)
+            org.junit.Assert.fail("expected the exception to propagate")
+        } catch (e: IllegalStateException) {
+            // expected - the exception must still propagate, not be swallowed
+        }
+
+        // The consumed ad is gone (and its state after a synchronous SDK throw is unknown), so the
+        // placement must self-heal with a fresh load instead of being stuck reporting not-ready
+        // until some unrelated caller happens to call load() again.
+        assertEquals(2, loadCount)
+        assertTrue(manager.isReady())
     }
 }

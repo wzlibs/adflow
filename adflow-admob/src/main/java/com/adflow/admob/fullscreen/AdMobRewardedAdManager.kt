@@ -7,6 +7,7 @@ import com.adflow.core.AdFlowCore
 import com.adflow.core.AdFlowError
 import com.adflow.core.AdFlowEvent
 import com.adflow.core.AdType
+import com.adflow.core.BlockReason
 import com.adflow.core.CachedAdLoaderBase
 import com.adflow.core.PlacementConfig
 import com.adflow.core.RewardItem
@@ -60,12 +61,19 @@ open class AdMobRewardedAdManager(
 
     override fun show(activity: Activity, callback: RewardedAdCallback) {
         if (checkNotReadyOrShowRuleBlocked(callback)) return
+        // Claimed before consuming the cached ad so a losing claim never sacrifices it: two
+        // full-screen ads (even from different managers) must never be on screen at once.
+        if (!AdFlowCore.tryClaimFullScreenSlot()) {
+            AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "another full-screen ad is showing")
+            callback.onShowBlocked(BlockReason.ANOTHER_AD_SHOWING)
+            return
+        }
         val ad = consumeCachedAd()
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdShowedFullScreenContent() = callback.onAdShown()
 
             override fun onAdDismissedFullScreenContent() {
-                AdFlowCore.setShowingFullScreenAd(false)
+                AdFlowCore.releaseFullScreenSlot()
                 callback.onAdDismissed()
                 // Preload the next ad once this one is actually done, not the instant show() was
                 // called - the display duration is out of our control.
@@ -73,25 +81,29 @@ open class AdMobRewardedAdManager(
             }
 
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                AdFlowCore.setShowingFullScreenAd(false)
+                AdFlowCore.releaseFullScreenSlot()
                 AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_FAILED, error.message)
                 callback.onAdFailedToShow(AdFlowError(error.code, error.message))
                 preloadIfEnabled()
             }
         }
         AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOWN)
-        // Tracked so AppOpenAdController never shows an App Open ad on top of this one.
-        AdFlowCore.setShowingFullScreenAd(true)
         try {
             ad.show(activity) { rewardItem ->
                 callback.onUserEarnedReward(RewardItem(rewardItem.type, rewardItem.amount))
             }
         } catch (e: Throwable) {
             // ad.show() is expected to report failure via onAdFailedToShowFullScreenContent, not
-            // throw - but if the SDK ever does throw synchronously, the flag must not stay stuck
-            // true forever (which would silently disable AppOpenAdController for the rest of the
-            // process).
-            AdFlowCore.setShowingFullScreenAd(false)
+            // throw - but if the SDK ever does throw synchronously, the slot must not stay claimed
+            // forever (which would silently disable AppOpenAdController and every other
+            // full-screen show for the rest of the process).
+            AdFlowCore.releaseFullScreenSlot()
+            // The consumed ad is gone and its state after a synchronous SDK throw is unknown, so
+            // self-heal with a fresh load - same as the expired/not-ready path - instead of leaving
+            // the placement stuck reporting not-ready until an unrelated caller happens to load()
+            // again. Unconditional (not gated on preloadEnabled): this is recovery from a failure,
+            // not the ahead-of-time preload preloadIfEnabled() is for.
+            load {}
             throw e
         }
     }

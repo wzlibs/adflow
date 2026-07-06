@@ -61,7 +61,7 @@ class AppOpenAdControllerTest {
         val controller = AppOpenAdController(application, appOpen)
         controller.start()
         Robolectric.buildActivity(Activity::class.java).create().start().resume()
-        AdFlowCore.setShowingFullScreenAd(true)
+        AdFlowCore.tryClaimFullScreenSlot()
 
         controller.showIfPossible()
 
@@ -89,6 +89,33 @@ class AppOpenAdControllerTest {
         activityController.pause()
 
         controller.showIfPossible()
+
+        assertNull(appOpen.shownWith)
+    }
+
+    @Test
+    fun `defers the foreground show until an activity resumes if the process starts first`() {
+        val appOpen = FakeAppOpenAdManager(ready = true)
+        val controller = AppOpenAdController(application, appOpen)
+        controller.start()
+
+        controller.onForegroundStart()
+        assertNull(appOpen.shownWith)
+
+        val activityController = Robolectric.buildActivity(Activity::class.java).create().start().resume()
+
+        assertEquals(activityController.get(), appOpen.shownWith)
+    }
+
+    @Test
+    fun `forgets a pending foreground show once the process goes back to the background`() {
+        val appOpen = FakeAppOpenAdManager(ready = true)
+        val controller = AppOpenAdController(application, appOpen)
+        controller.start()
+
+        controller.onForegroundStart()
+        controller.onForegroundStop()
+        Robolectric.buildActivity(Activity::class.java).create().start().resume()
 
         assertNull(appOpen.shownWith)
     }

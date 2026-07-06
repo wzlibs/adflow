@@ -133,4 +133,46 @@ class SimpleCachedAdLoaderBaseTest {
         manager.load {}
         assertEquals(1, onLoadedCallCount)
     }
+
+    @Test
+    fun `onLoaded fires exactly once even when two load() calls coalesce onto the same in-flight cycle`() {
+        val fakeScheduler = mutableListOf<() -> Unit>()
+        var onLoadedCallCount = 0
+        var attempts = 0
+        val manager = object : SimpleCachedAdLoaderBase<String>(
+            PlacementConfig(
+                placementId = "p1",
+                adUnitIds = listOf("A"),
+                retryPolicy = RetryPolicy(initialDelayMs = 1, multiplier = 1.0, maxDelayMs = 1, maxRetries = 1),
+            ),
+            AdType.BANNER,
+        ) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                attempts += 1
+                // Fail the first attempt so the cycle stays in flight (retry scheduled), leaving a
+                // window for a second load() call to coalesce onto it before it resolves.
+                if (attempts == 1) onResult(Result.failure(RuntimeException("no fill"))) else onResult(Result.success("ad-A"))
+            }
+
+            override fun onLoaded(ad: String) {
+                onLoadedCallCount += 1
+            }
+        }
+        manager.scheduleRetry = { _, action -> fakeScheduler += action }
+
+        var firstResult: AdLoadResult? = null
+        var secondResult: AdLoadResult? = null
+        manager.load { firstResult = it }
+        assertEquals(1, fakeScheduler.size) // first attempt failed, retry scheduled, still in flight
+
+        manager.load { secondResult = it } // coalesces onto the in-flight retry cycle, per RetryingAdLoader
+
+        fakeScheduler.removeAt(0).invoke() // run the retry synchronously - succeeds this time
+
+        assertEquals(AdLoadResult.Success, firstResult)
+        assertEquals(AdLoadResult.Success, secondResult)
+        // Both coalesced callbacks run the same "cache the ad" branch - onLoaded must still only
+        // fire once for this one genuine load, not once per coalesced caller.
+        assertEquals(1, onLoadedCallCount)
+    }
 }

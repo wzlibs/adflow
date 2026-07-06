@@ -22,10 +22,15 @@ class AppOpenAdController(
     private val appOpen: AppOpenAdManager,
 ) {
     private var currentActivity: Activity? = null
+    private var pendingForegroundShow: Boolean = false
 
     private val activityCallbacks = object : Application.ActivityLifecycleCallbacks {
         override fun onActivityResumed(activity: Activity) {
             currentActivity = activity
+            if (pendingForegroundShow) {
+                pendingForegroundShow = false
+                showIfPossible()
+            }
         }
 
         override fun onActivityPaused(activity: Activity) {
@@ -41,13 +46,34 @@ class AppOpenAdController(
 
     private val processLifecycleObserver = object : DefaultLifecycleObserver {
         override fun onStart(owner: LifecycleOwner) {
-            showIfPossible()
+            onForegroundStart()
+        }
+
+        override fun onStop(owner: LifecycleOwner) {
+            onForegroundStop()
         }
     }
 
     fun start() {
         application.registerActivityLifecycleCallbacks(activityCallbacks)
         ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver)
+    }
+
+    /**
+     * Process start can fire before Android delivers the matching Activity resume callback, so a
+     * foreground transition with no [currentActivity] yet must not be dropped - it's deferred
+     * until [onActivityResumed] fires instead of being lost.
+     */
+    internal fun onForegroundStart() {
+        if (currentActivity == null) {
+            pendingForegroundShow = true
+            return
+        }
+        showIfPossible()
+    }
+
+    internal fun onForegroundStop() {
+        pendingForegroundShow = false
     }
 
     /**
