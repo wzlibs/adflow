@@ -2,6 +2,7 @@ package com.adflow.core
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -61,7 +62,7 @@ class RetryingAdLoaderTest {
     }
 
     @Test
-    fun `a second start() call while one is already in flight is queued, not dropped`() {
+    fun `a second start() call while one is already in flight is ignored (fire-and-forget)`() {
         val fakeScheduler = mutableListOf<() -> Unit>()
         val config = PlacementConfig(
             placementId = "p1",
@@ -76,22 +77,42 @@ class RetryingAdLoaderTest {
         loader.scheduleRetry = { _, action -> fakeScheduler += action }
 
         var firstResult: AdLoadResult? = null
-        var secondResult: AdLoadResult? = null
+        var secondCalled = false
         loader.start { r, _ -> firstResult = r }
         assertEquals(1, fakeScheduler.size) // first pass failed, one retry scheduled, still in flight
 
-        // A second caller starts a load while the first is still retrying - it must not be silently
-        // dropped: it should observe the same eventual outcome as the in-flight attempt, and must
-        // NOT restart the waterfall from scratch (attempts stays governed by the one in-flight run).
-        loader.start { r, _ -> secondResult = r }
-        assertEquals(null, secondResult) // still queued, waiting on the same in-flight attempt
+        // A second caller starts a load while the first is still retrying - it must be ignored
+        // entirely: no second, independent waterfall pass, and its callback must never fire, not
+        // even once the in-flight attempt eventually finishes.
+        loader.start { _, _ -> secondCalled = true }
         assertEquals(1, fakeScheduler.size) // no second, independent retry was scheduled
 
         fakeScheduler.removeAt(0).invoke() // run the retry synchronously; retries are exhausted after this
 
         assertTrue(firstResult is AdLoadResult.Failure)
-        assertTrue(secondResult is AdLoadResult.Failure)
+        assertFalse(secondCalled) // the second start() call's callback is never invoked
         assertEquals(2, attempts) // one waterfall pass (1 ad unit) x 2 attempts (initial + 1 retry)
+    }
+
+    @Test
+    fun `a fresh start() after a cycle finishes is not ignored`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        var attempts = 0
+        val loader = RetryingAdLoader<String>(config, AdType.INTERSTITIAL) { _, onResult ->
+            attempts += 1
+            onResult(Result.success("ad-$attempts"))
+        }
+
+        var firstResult: AdLoadResult? = null
+        loader.start { r, _ -> firstResult = r }
+        assertEquals(AdLoadResult.Success, firstResult)
+
+        // isRunning must reset to false once the cycle finishes, so a later, independent start()
+        // is free to run its own waterfall pass rather than being mistaken for still in flight.
+        var secondResult: AdLoadResult? = null
+        loader.start { r, _ -> secondResult = r }
+        assertEquals(AdLoadResult.Success, secondResult)
+        assertEquals(2, attempts)
     }
 
     @Test
