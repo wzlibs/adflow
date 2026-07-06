@@ -4,11 +4,11 @@ import android.content.Context
 import android.view.View
 import com.adflow.admob.dispatchRevenue
 import com.adflow.core.AdType
+import com.adflow.core.ExpiringCachedAdLoaderBase
 import com.adflow.core.NativeAdAssets
 import com.adflow.core.NativeAdManager
 import com.adflow.core.NativeAdRenderer
 import com.adflow.core.PlacementConfig
-import com.adflow.core.SimpleCachedAdLoaderBase
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
@@ -20,7 +20,7 @@ import com.google.android.gms.ads.nativead.NativeAdView
 open class AdMobNativeAdManager(
     private val context: Context,
     config: PlacementConfig,
-) : SimpleCachedAdLoaderBase<NativeAd>(config, AdType.NATIVE), NativeAdManager {
+) : ExpiringCachedAdLoaderBase<NativeAd>(config, AdType.NATIVE), NativeAdManager {
 
     private val placementId = config.placementId
 
@@ -42,6 +42,7 @@ open class AdMobNativeAdManager(
     }
 
     override fun createView(context: Context, renderer: NativeAdRenderer): View {
+        dropIfExpired()
         val ad = cachedAd ?: throw IllegalStateException("Native ad for '${config.placementId}' has not loaded yet")
         val view = renderer.createView(context)
         val assets = NativeAdAssets(

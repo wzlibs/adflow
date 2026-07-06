@@ -1,10 +1,8 @@
 package com.adflow.core
 
 /**
- * Adds expiry to [SimpleCachedAdLoaderBase]'s load/cache/retry lifecycle: full-screen ads
- * (Interstitial/AppOpen, via [FullScreenAdManagerBase]) and Rewarded (via `AdMobRewardedAdManager`
- * in the admob module) drop the cached ad once it's past [PlacementConfig.expiryMs], which
- * Banner/Native (built directly on [SimpleCachedAdLoaderBase]) never do.
+ * Adds the show()-consumption helpers full-screen ads and Rewarded need on top of
+ * [ExpiringCachedAdLoaderBase]'s expiry tracking.
  *
  * `show()` itself is deliberately NOT here: [com.adflow.core] declares two different show contracts
  * (`FullScreenAdManager.show` takes a [ShowCallback], `RewardedAdManager.show` takes a
@@ -16,28 +14,7 @@ package com.adflow.core
 abstract class CachedAdLoaderBase<TAd : Any>(
     config: PlacementConfig,
     adType: AdType,
-) : SimpleCachedAdLoaderBase<TAd>(config, adType) {
-
-    var nowProvider: () -> Long = { System.currentTimeMillis() }
-
-    private var loadedAtMs: Long = 0L
-
-    override fun onLoaded(ad: TAd) {
-        loadedAtMs = nowProvider()
-    }
-
-    override fun isReady(): Boolean {
-        val ageMs = nowProvider() - loadedAtMs
-        return cachedAd != null && ageMs < config.expiryMs
-    }
-
-    /** Drops the cached ad once it's past [PlacementConfig.expiryMs], rather than holding onto a
-     * stale reference until the next successful load overwrites it. */
-    protected fun dropIfExpired() {
-        if (cachedAd != null && nowProvider() - loadedAtMs >= config.expiryMs) {
-            cachedAd = null
-        }
-    }
+) : ExpiringCachedAdLoaderBase<TAd>(config, adType) {
 
     /**
      * Takes and clears the cached ad - subclasses call this right before actually displaying it,

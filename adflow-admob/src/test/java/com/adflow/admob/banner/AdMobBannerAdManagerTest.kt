@@ -16,8 +16,9 @@ import org.robolectric.RuntimeEnvironment
 /**
  * Proves that AdMobBannerAdManager now retries the waterfall with backoff on no-fill (via the
  * shared com.adflow.core.RetryingAdLoader) instead of giving up after a single pass, while
- * isReady() stays a plain non-null check with no expiry (banners/native must never expire, per
- * the AdFlow design constraints).
+ * isReady() stays a plain non-null check with no expiry - unlike every other ad type, a banner is
+ * meant to be displayed and self-refreshed by the SDK immediately upon load, not cached ahead of
+ * time and shown later, so it never goes stale while waiting.
  */
 @RunWith(RobolectricTestRunner::class)
 class AdMobBannerAdManagerTest {

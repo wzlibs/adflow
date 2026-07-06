@@ -15,8 +15,10 @@ import org.robolectric.RuntimeEnvironment
 
 /**
  * Proves that AdMobNativeAdManager now retries the waterfall with backoff on no-fill (via the
- * shared com.adflow.core.RetryingAdLoader) instead of giving up after a single pass, while
- * isReady() stays a plain non-null check with no expiry.
+ * shared com.adflow.core.RetryingAdLoader) instead of giving up after a single pass. Native's
+ * expiry behavior (dropping a stale cached ad past PlacementConfig.expiryMs) is inherited from
+ * com.adflow.core.ExpiringCachedAdLoaderBase and covered directly by that class's own tests, since
+ * a real successfully-loaded NativeAd isn't constructible here without Mockito.
  */
 @RunWith(RobolectricTestRunner::class)
 class AdMobNativeAdManagerTest {

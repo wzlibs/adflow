@@ -3,10 +3,11 @@ package com.adflow.core
 /**
  * Owns the "load, cache, retry" lifecycle shared by every ad type that caches a single ad instance
  * ahead of use: the enabled/loadRule checks, the isReady() short-circuit that skips a redundant
- * waterfall pass, and caching the ad on a successful load. [CachedAdLoaderBase] extends this to add
- * expiry (dropping the ad once stale, recording a load timestamp via [onLoaded]) for the ad types
- * that need it (full-screen, Rewarded); Banner and Native use this class directly, since per the
- * design's Global Constraint they never go stale once cached and don't need that bookkeeping.
+ * waterfall pass, and caching the ad on a successful load. [ExpiringCachedAdLoaderBase] extends
+ * this to add expiry (dropping the ad once stale, recording a load timestamp via [onLoaded]) for
+ * the ad types that go stale (full-screen, Rewarded, Native); Banner uses this class directly,
+ * since per the design's Global Constraint it never goes stale once cached and doesn't need that
+ * bookkeeping.
  */
 abstract class SimpleCachedAdLoaderBase<TAd : Any>(
     protected val config: PlacementConfig,
