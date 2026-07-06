@@ -10,13 +10,16 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
     protected abstract fun requestAd(adUnitId: String, onResult: (Result<TAd>) -> Unit)
     protected abstract fun performShow(ad: TAd, activity: Activity, callback: ShowCallback)
 
-    internal var scheduleRetry: (delayMs: Long, action: () -> Unit) -> Unit =
-        { delayMs, action -> android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(action, delayMs) }
+    private val loader: RetryingAdLoader<TAd> =
+        RetryingAdLoader(config, adType) { adUnitId, onResult -> requestAd(adUnitId, onResult) }
+
+    internal var scheduleRetry: (delayMs: Long, action: () -> Unit) -> Unit
+        get() = loader.scheduleRetry
+        set(value) { loader.scheduleRetry = value }
     internal var nowProvider: () -> Long = { System.currentTimeMillis() }
 
     private var cachedAd: TAd? = null
     private var loadedAtMs: Long = 0L
-    private var retryAttempt: Int = 0
     private var isLoading: Boolean = false
 
     override fun isReady(): Boolean {
@@ -37,39 +40,13 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
         }
         if (isLoading) return
         isLoading = true
-        retryAttempt = 0
-        startWaterfall(onResult)
-    }
-
-    private fun startWaterfall(onResult: (AdLoadResult) -> Unit) {
-        AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOADING)
-        val loader = WaterfallLoader(config.adUnitIds) { adUnitId, cb ->
-            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.WATERFALL_NEXT, adUnitId)
-            requestAd(adUnitId, cb)
-        }
-        loader.start { result ->
-            result.fold(
-                onSuccess = { ad ->
-                    cachedAd = ad
-                    loadedAtMs = nowProvider()
-                    isLoading = false
-                    retryAttempt = 0
-                    AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOADED)
-                    onResult(AdLoadResult.Success)
-                },
-                onFailure = { error ->
-                    AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.NO_FILL)
-                    retryAttempt += 1
-                    if (retryAttempt > config.retryPolicy.maxRetries) {
-                        isLoading = false
-                        onResult(AdLoadResult.Failure(AdFlowError(-3, error.message ?: "waterfall exhausted")))
-                        return@fold
-                    }
-                    val delayMs = config.retryPolicy.delayForAttempt(retryAttempt)
-                    AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.RETRYING, "attempt=$retryAttempt delay=$delayMs")
-                    scheduleRetry(delayMs) { startWaterfall(onResult) }
-                },
-            )
+        loader.start { result, ad ->
+            if (result is AdLoadResult.Success && ad != null) {
+                cachedAd = ad
+                loadedAtMs = nowProvider()
+            }
+            isLoading = false
+            onResult(result)
         }
     }
 
