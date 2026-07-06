@@ -254,4 +254,45 @@ class FullScreenAdManagerBaseTest {
         assertTrue(shown)
         assertTrue(dismissed)
     }
+
+    @Test
+    fun `AdFlowCore isShowingFullScreenAd is true only while the ad is actually on screen`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        var deferredDismiss: (() -> Unit)? = null
+        var showingWhileOnScreen = false
+        val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                onResult(Result.success("ad-A"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+                showingWhileOnScreen = AdFlowCore.isShowingFullScreenAd
+                deferredDismiss = { callback.onAdDismissed() }
+            }
+        }
+        manager.load {}
+
+        assertFalse(AdFlowCore.isShowingFullScreenAd) // not shown yet
+        manager.show(activity, ShowCallback.NONE)
+        assertTrue(showingWhileOnScreen) // set before performShow() hands off to the SDK
+        assertTrue(AdFlowCore.isShowingFullScreenAd) // still on screen - dismiss hasn't fired yet
+
+        deferredDismiss?.invoke()
+        assertFalse(AdFlowCore.isShowingFullScreenAd) // cleared once dismissed
+    }
+
+    @Test
+    fun `AdFlowCore isShowingFullScreenAd is cleared when the ad fails to show`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                onResult(Result.success("ad-A"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+                callback.onAdFailedToShow(AdFlowError(-1, "boom"))
+            }
+        }
+        manager.load {}
+        manager.show(activity, ShowCallback.NONE)
+        assertFalse(AdFlowCore.isShowingFullScreenAd)
+    }
 }

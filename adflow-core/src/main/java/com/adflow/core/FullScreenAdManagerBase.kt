@@ -18,6 +18,8 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
         }
         val ad = consumeCachedAd()
         AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOWN)
+        // Tracked so AppOpenAdController never shows an App Open ad on top of this one.
+        AdFlowCore.setShowingFullScreenAd(true)
         performShow(
             ad,
             activity,
@@ -30,11 +32,13 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
                     // ad and isn't something we control, so anchoring on "show" would under-count
                     // the real gap between ads the user experiences.
                     AdShowIntervalPolicy.recordShown(adType, nowProvider())
+                    AdFlowCore.setShowingFullScreenAd(false)
                     callback.onAdDismissed()
                     preloadIfEnabled()
                 }
 
                 override fun onAdFailedToShow(error: AdFlowError) {
+                    AdFlowCore.setShowingFullScreenAd(false)
                     callback.onAdFailedToShow(error)
                     preloadIfEnabled()
                 }

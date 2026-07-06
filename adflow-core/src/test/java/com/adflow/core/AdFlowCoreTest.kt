@@ -2,6 +2,8 @@ package com.adflow.core
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AdFlowCoreTest {
@@ -9,6 +11,22 @@ class AdFlowCoreTest {
     @After
     fun tearDown() {
         AdFlowCore.reset()
+    }
+
+    @Test
+    fun `isShowingFullScreenAd reflects the most recent setShowingFullScreenAd call`() {
+        assertFalse(AdFlowCore.isShowingFullScreenAd)
+        AdFlowCore.setShowingFullScreenAd(true)
+        assertTrue(AdFlowCore.isShowingFullScreenAd)
+        AdFlowCore.setShowingFullScreenAd(false)
+        assertFalse(AdFlowCore.isShowingFullScreenAd)
+    }
+
+    @Test
+    fun `reset() clears isShowingFullScreenAd back to false`() {
+        AdFlowCore.setShowingFullScreenAd(true)
+        AdFlowCore.reset()
+        assertFalse(AdFlowCore.isShowingFullScreenAd)
     }
 
     @Test

@@ -23,6 +23,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.lifecycle.process)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
 }

@@ -65,6 +65,7 @@ open class AdMobRewardedAdManager(
             override fun onAdShowedFullScreenContent() = callback.onAdShown()
 
             override fun onAdDismissedFullScreenContent() {
+                AdFlowCore.setShowingFullScreenAd(false)
                 callback.onAdDismissed()
                 // Preload the next ad once this one is actually done, not the instant show() was
                 // called - the display duration is out of our control.
@@ -72,12 +73,15 @@ open class AdMobRewardedAdManager(
             }
 
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                AdFlowCore.setShowingFullScreenAd(false)
                 AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_FAILED, error.message)
                 callback.onAdFailedToShow(AdFlowError(error.code, error.message))
                 preloadIfEnabled()
             }
         }
         AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOWN)
+        // Tracked so AppOpenAdController never shows an App Open ad on top of this one.
+        AdFlowCore.setShowingFullScreenAd(true)
         ad.show(activity) { rewardItem ->
             callback.onUserEarnedReward(RewardItem(rewardItem.type, rewardItem.amount))
         }
