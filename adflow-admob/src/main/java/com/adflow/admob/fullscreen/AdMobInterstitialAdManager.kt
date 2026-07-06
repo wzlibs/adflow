@@ -2,6 +2,7 @@ package com.adflow.admob.fullscreen
 
 import android.app.Activity
 import android.content.Context
+import com.adflow.admob.precisionName
 import com.adflow.core.AdFlowCore
 import com.adflow.core.AdFlowError
 import com.adflow.core.AdRevenueEvent
@@ -12,7 +13,6 @@ import com.adflow.core.PlacementConfig
 import com.adflow.core.ShowCallback
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.OnPaidEventListener
@@ -64,13 +64,5 @@ class AdMobInterstitialAdManager(
                 callback.onAdFailedToShow(AdFlowError(error.code, error.message))
         }
         ad.show(activity)
-    }
-
-    private fun precisionName(@AdValue.PrecisionType precisionType: Int): String = when (precisionType) {
-        AdValue.PrecisionType.PRECISE -> "PRECISE"
-        AdValue.PrecisionType.ESTIMATED -> "ESTIMATED"
-        AdValue.PrecisionType.PUBLISHER_PROVIDED -> "PUBLISHER_PROVIDED"
-        AdValue.PrecisionType.UNKNOWN -> "UNKNOWN"
-        else -> "UNKNOWN"
     }
 }
