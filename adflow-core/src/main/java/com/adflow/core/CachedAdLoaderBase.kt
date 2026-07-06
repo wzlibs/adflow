@@ -7,10 +7,10 @@ package com.adflow.core
  *
  * `show()` itself is deliberately NOT here: [com.adflow.core] declares two different show contracts
  * (`FullScreenAdManager.show` takes a [ShowCallback], `RewardedAdManager.show` takes a
- * [RewardedAdCallback] which additionally surfaces [RewardedAdCallback.onUserEarnedReward] and
- * [RewardedAdCallback.onAdExpired]), so each concrete manager implements its own `show()` using the
- * protected helpers here ([dropIfExpired], [consumeCachedAd], [preloadIfEnabled]) rather than
- * duplicating the caching/expiry/retry bookkeeping itself.
+ * [RewardedAdCallback] which additionally surfaces [RewardedAdCallback.onUserEarnedReward]), so each
+ * concrete manager implements its own `show()` using the protected helpers here ([dropIfExpired],
+ * [consumeCachedAd], [preloadIfEnabled]) rather than duplicating the caching/expiry/retry bookkeeping
+ * itself.
  *
  * Banner/Native managers don't extend this: per the design's Global Constraint, they're never
  * subject to expiry, so their (simpler, expiry-free) cache bookkeeping stays separate.

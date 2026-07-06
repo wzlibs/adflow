@@ -7,7 +7,6 @@ interface RewardedAdCallback {
     fun onAdFailedToShow(error: AdFlowError) {}
     fun onUserEarnedReward(reward: RewardItem) {}
     fun onAdDismissed() {}
-    fun onAdExpired() {}
     fun onShowBlocked(reason: BlockReason) {}
 
     companion object {

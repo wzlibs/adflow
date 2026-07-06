@@ -27,9 +27,8 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
  *
  * Shares the load/cache/expiry/retry/preload lifecycle with full-screen managers via
  * [CachedAdLoaderBase] - only `show()` differs, since [RewardedAdManager.show] takes a
- * [RewardedAdCallback] (which additionally surfaces [RewardedAdCallback.onUserEarnedReward] and
- * [RewardedAdCallback.onAdExpired]) rather than the plain `ShowCallback`
- * [com.adflow.core.FullScreenAdManagerBase] is built around.
+ * [RewardedAdCallback] (which additionally surfaces [RewardedAdCallback.onUserEarnedReward])
+ * rather than the plain `ShowCallback` [com.adflow.core.FullScreenAdManagerBase] is built around.
  *
  * Rewarded ads are intentionally NOT subject to [com.adflow.core.AdShowIntervalPolicy] frequency
  * capping - that policy only applies to interstitial/app open ads by design.
@@ -72,18 +71,12 @@ open class AdMobRewardedAdManager(
     }
 
     override fun show(activity: Activity, callback: RewardedAdCallback) {
-        // Captured before dropIfExpired() so it still reflects pre-drop state: it's what tells the
-        // not-ready branch below whether to report "expired" vs "never ready" to the caller.
-        val wasCached = cachedAd != null
         dropIfExpired()
         if (!isReady()) {
-            if (wasCached) {
-                AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.EXPIRED)
-                callback.onAdExpired()
-            } else {
-                AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "not ready")
-                callback.onShowBlocked(BlockReason.NOT_READY)
-            }
+            // Not ready whether the ad never loaded or went stale past expiryMs - the app doesn't
+            // need to distinguish those cases, only that no ad is available right now.
+            AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_BLOCKED, "not ready")
+            callback.onShowBlocked(BlockReason.NOT_READY)
             // Self-heal: retrigger a load so this placement doesn't stay stuck reporting not-ready
             // forever - harmless no-op if one is already in flight (RetryingAdLoader ignores a
             // concurrent start() call rather than starting a second, independent one).
