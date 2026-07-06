@@ -29,6 +29,11 @@ class RetryingAdLoader<TAd>(
      * [onResult] registered this way is invoked exactly once, with that cycle's eventual result,
      * once it finishes.
      */
+    // start()/finish() are synchronized so the check-then-set on isRunning (and the shared
+    // pendingCallbacks/retryAttempt state) is atomic across threads, not just within a single
+    // thread's sequential re-entrancy - requestAd() callbacks are not guaranteed to land on the
+    // caller's original thread.
+    @Synchronized
     fun start(onResult: (AdLoadResult, TAd?) -> Unit) {
         pendingCallbacks += onResult
         if (isRunning) return
@@ -70,6 +75,7 @@ class RetryingAdLoader<TAd>(
         }
     }
 
+    @Synchronized
     private fun finish(result: AdLoadResult, ad: TAd?) {
         isRunning = false
         val callbacks = pendingCallbacks.toList()

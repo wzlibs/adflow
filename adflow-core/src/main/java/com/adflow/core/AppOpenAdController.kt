@@ -23,6 +23,7 @@ class AppOpenAdController(
 ) {
     private var currentActivity: Activity? = null
     private var pendingForegroundShow: Boolean = false
+    private var started: Boolean = false
 
     private val activityCallbacks = object : Application.ActivityLifecycleCallbacks {
         override fun onActivityResumed(activity: Activity) {
@@ -54,9 +55,21 @@ class AppOpenAdController(
         }
     }
 
+    /** Idempotent - a second call while already started is a no-op, so callers don't need to
+     * guard against calling [start] more than once (e.g. from a re-entered `Application.onCreate`). */
     fun start() {
+        if (started) return
+        started = true
         application.registerActivityLifecycleCallbacks(activityCallbacks)
         ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver)
+    }
+
+    /** Reverses [start]; a no-op if not currently started. */
+    fun stop() {
+        if (!started) return
+        started = false
+        application.unregisterActivityLifecycleCallbacks(activityCallbacks)
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(processLifecycleObserver)
     }
 
     /**

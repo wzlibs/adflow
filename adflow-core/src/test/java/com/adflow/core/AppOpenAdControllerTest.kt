@@ -119,4 +119,33 @@ class AppOpenAdControllerTest {
 
         assertNull(appOpen.shownWith)
     }
+
+    @Test
+    fun `start() is idempotent - a single stop() fully unregisters even after multiple start() calls`() {
+        val appOpen = FakeAppOpenAdManager(ready = true)
+        val controller = AppOpenAdController(application, appOpen)
+        controller.start()
+        controller.start() // must not create a second, independent registration
+        controller.stop() // a single stop() must be enough to fully undo both start() calls
+
+        // If start() had registered activityCallbacks twice, one stop() would leave one
+        // registration dangling, and this resume would still capture currentActivity.
+        Robolectric.buildActivity(Activity::class.java).create().start().resume()
+        controller.showIfPossible()
+
+        assertNull(appOpen.shownWith)
+    }
+
+    @Test
+    fun `stop() unregisters so a later resume no longer captures the activity or auto-shows`() {
+        val appOpen = FakeAppOpenAdManager(ready = true)
+        val controller = AppOpenAdController(application, appOpen)
+        controller.start()
+        controller.stop()
+
+        Robolectric.buildActivity(Activity::class.java).create().start().resume()
+        controller.showIfPossible()
+
+        assertNull(appOpen.shownWith)
+    }
 }
