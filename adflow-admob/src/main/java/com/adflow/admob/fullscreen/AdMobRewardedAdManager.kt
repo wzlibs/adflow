@@ -2,6 +2,7 @@ package com.adflow.admob.fullscreen
 
 import android.app.Activity
 import android.content.Context
+import com.adflow.admob.precisionName
 import com.adflow.core.AdFlowCore
 import com.adflow.core.AdFlowError
 import com.adflow.core.AdFlowEvent
@@ -10,13 +11,12 @@ import com.adflow.core.AdRevenueEvent
 import com.adflow.core.AdType
 import com.adflow.core.BlockReason
 import com.adflow.core.PlacementConfig
+import com.adflow.core.RetryingAdLoader
 import com.adflow.core.RewardItem
 import com.adflow.core.RewardedAdCallback
 import com.adflow.core.RewardedAdManager
-import com.adflow.core.WaterfallLoader
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.OnPaidEventListener
@@ -29,22 +29,30 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
  * Unlike [com.adflow.core.FullScreenAdManagerBase]-based managers, this class cannot extend that
  * base because [RewardedAdManager.show] takes a [RewardedAdCallback] (which additionally surfaces
  * [RewardedAdCallback.onUserEarnedReward] and [RewardedAdCallback.onAdExpired]) rather than the
- * plain `ShowCallback` the base class is built around. The load/retry/expiry state machine is
- * therefore reimplemented inline, mirroring `FullScreenAdManagerBase`'s behavior.
+ * plain `ShowCallback` the base class is built around. The load/retry plumbing, however, is
+ * identical to the full-screen managers, so it delegates to the same shared
+ * [com.adflow.core.RetryingAdLoader] rather than reimplementing the waterfall/backoff state
+ * machine inline. This class keeps its own cached-ad/expiry bookkeeping and `show()` signature.
  *
  * Rewarded ads are intentionally NOT subject to [com.adflow.core.AdShowIntervalPolicy] frequency
  * capping - that policy only applies to interstitial/app open ads by design.
  */
-class AdMobRewardedAdManager(
+open class AdMobRewardedAdManager(
     private val context: Context,
     private val config: PlacementConfig,
 ) : RewardedAdManager {
 
     private val placementId = config.placementId
 
+    private val loader: RetryingAdLoader<RewardedAd> =
+        RetryingAdLoader(config, AdType.REWARDED) { adUnitId, onResult -> requestAd(adUnitId, onResult) }
+
+    internal var scheduleRetry: (delayMs: Long, action: () -> Unit) -> Unit
+        get() = loader.scheduleRetry
+        set(value) { loader.scheduleRetry = value }
+
     private var cachedAd: RewardedAd? = null
     private var loadedAtMs: Long = 0L
-    private var retryAttempt: Int = 0
     private var isLoading: Boolean = false
 
     override fun isReady(): Boolean =
@@ -63,48 +71,17 @@ class AdMobRewardedAdManager(
         }
         if (isLoading) return
         isLoading = true
-        retryAttempt = 0
-        startWaterfall(onResult)
-    }
-
-    private fun startWaterfall(onResult: (AdLoadResult) -> Unit) {
-        AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.LOADING)
-        val loader = WaterfallLoader(config.adUnitIds) { adUnitId, cb ->
-            AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.WATERFALL_NEXT, adUnitId)
-            requestAd(adUnitId, cb)
-        }
-        loader.start { result ->
-            result.fold(
-                onSuccess = { ad ->
-                    cachedAd = ad
-                    loadedAtMs = System.currentTimeMillis()
-                    isLoading = false
-                    retryAttempt = 0
-                    AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.LOADED)
-                    onResult(AdLoadResult.Success)
-                },
-                onFailure = { error ->
-                    AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.NO_FILL)
-                    retryAttempt += 1
-                    if (retryAttempt > config.retryPolicy.maxRetries) {
-                        isLoading = false
-                        onResult(AdLoadResult.Failure(AdFlowError(-3, error.message ?: "waterfall exhausted")))
-                        return@fold
-                    }
-                    val delayMs = config.retryPolicy.delayForAttempt(retryAttempt)
-                    AdFlowCore.logger.log(
-                        placementId,
-                        AdType.REWARDED,
-                        AdFlowEvent.RETRYING,
-                        "attempt=$retryAttempt delay=$delayMs",
-                    )
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ startWaterfall(onResult) }, delayMs)
-                },
-            )
+        loader.start { result, ad ->
+            if (result is AdLoadResult.Success && ad != null) {
+                cachedAd = ad
+                loadedAtMs = System.currentTimeMillis()
+            }
+            isLoading = false
+            onResult(result)
         }
     }
 
-    private fun requestAd(adUnitId: String, onResult: (Result<RewardedAd>) -> Unit) {
+    internal open fun requestAd(adUnitId: String, onResult: (Result<RewardedAd>) -> Unit) {
         RewardedAd.load(
             context,
             adUnitId,
@@ -166,13 +143,5 @@ class AdMobRewardedAdManager(
             callback.onUserEarnedReward(RewardItem(rewardItem.type, rewardItem.amount))
         }
         if (config.preloadEnabled) load()
-    }
-
-    private fun precisionName(@AdValue.PrecisionType precisionType: Int): String = when (precisionType) {
-        AdValue.PrecisionType.PRECISE -> "PRECISE"
-        AdValue.PrecisionType.ESTIMATED -> "ESTIMATED"
-        AdValue.PrecisionType.PUBLISHER_PROVIDED -> "PUBLISHER_PROVIDED"
-        AdValue.PrecisionType.UNKNOWN -> "UNKNOWN"
-        else -> "UNKNOWN"
     }
 }
