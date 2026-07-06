@@ -1,13 +1,12 @@
 package com.adflow.core
 
 /**
- * Owns the "load, cache, retry" lifecycle shared by ad types that never go stale once cached:
- * Banner and Native (via their respective admob-module managers). Per the design's Global
- * Constraint, expiry only applies to full-screen/rewarded ad types - see [CachedAdLoaderBase] for
- * that variant, which additionally tracks a load timestamp and drops the ad past
- * [PlacementConfig.expiryMs]. This class intentionally doesn't share a hierarchy with
- * [CachedAdLoaderBase]: the two differ in exactly the expiry bookkeeping, and threading that
- * through a common base would need more generic hooks than the modest duplication it would save.
+ * Owns the "load, cache, retry" lifecycle shared by every ad type that caches a single ad instance
+ * ahead of use: the enabled/loadRule checks, the isReady() short-circuit that skips a redundant
+ * waterfall pass, and caching the ad on a successful load. [CachedAdLoaderBase] extends this to add
+ * expiry (dropping the ad once stale, recording a load timestamp via [onLoaded]) for the ad types
+ * that need it (full-screen, Rewarded); Banner and Native use this class directly, since per the
+ * design's Global Constraint they never go stale once cached and don't need that bookkeeping.
  */
 abstract class SimpleCachedAdLoaderBase<TAd : Any>(
     protected val config: PlacementConfig,
@@ -23,9 +22,13 @@ abstract class SimpleCachedAdLoaderBase<TAd : Any>(
         set(value) { loader.scheduleRetry = value }
 
     protected var cachedAd: TAd? = null
-        private set
+        protected set
 
     open fun isReady(): Boolean = cachedAd != null
+
+    /** Called once a load succeeds, after [cachedAd] is already set to the new ad. No-op here;
+     * [CachedAdLoaderBase] overrides it to record the load timestamp for expiry tracking. */
+    protected open fun onLoaded(ad: TAd) {}
 
     open fun load(onResult: (AdLoadResult) -> Unit) {
         if (!config.enabled) {
@@ -45,6 +48,7 @@ abstract class SimpleCachedAdLoaderBase<TAd : Any>(
         loader.start { result, ad ->
             if (result is AdLoadResult.Success && ad != null) {
                 cachedAd = ad
+                onLoaded(ad)
             }
             onResult(result)
         }

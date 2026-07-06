@@ -9,8 +9,9 @@ import com.google.android.gms.ads.FullScreenContentCallback
  * Builds the [FullScreenContentCallback] every AdMob full-screen ad type wires onto its ad object
  * before calling `show()` - the SDK's callback shape is identical across ad types (Interstitial,
  * App Open), so only the concrete ad class differs, not this wiring. [AdMobRewardedAdManager]
- * doesn't use this: its `FullScreenContentCallback` additionally has to trigger a preload once the
- * ad is dismissed/fails, which this simple forwarder doesn't need.
+ * doesn't use this: its `FullScreenContentCallback` does extra work on dismiss/fail (triggering a
+ * preload, and logging [com.adflow.core.AdFlowEvent.SHOW_FAILED]) that this simple forwarder
+ * doesn't need.
  */
 internal fun fullScreenContentCallback(callback: ShowCallback): FullScreenContentCallback =
     object : FullScreenContentCallback() {

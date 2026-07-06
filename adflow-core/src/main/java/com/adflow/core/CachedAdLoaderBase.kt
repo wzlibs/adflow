@@ -1,9 +1,10 @@
 package com.adflow.core
 
 /**
- * Owns the "load, cache, expire, retry, preload" lifecycle shared by every ad type that caches a
- * single ad instance ahead of display: full-screen ads (Interstitial/AppOpen, via
- * [FullScreenAdManagerBase]) and Rewarded (via `AdMobRewardedAdManager` in the admob module).
+ * Adds expiry to [SimpleCachedAdLoaderBase]'s load/cache/retry lifecycle: full-screen ads
+ * (Interstitial/AppOpen, via [FullScreenAdManagerBase]) and Rewarded (via `AdMobRewardedAdManager`
+ * in the admob module) drop the cached ad once it's past [PlacementConfig.expiryMs], which
+ * Banner/Native (built directly on [SimpleCachedAdLoaderBase]) never do.
  *
  * `show()` itself is deliberately NOT here: [com.adflow.core] declares two different show contracts
  * (`FullScreenAdManager.show` takes a [ShowCallback], `RewardedAdManager.show` takes a
@@ -11,29 +12,21 @@ package com.adflow.core
  * concrete manager implements its own `show()` using the protected helpers here ([dropIfExpired],
  * [consumeCachedAd], [preloadIfEnabled]) rather than duplicating the caching/expiry/retry bookkeeping
  * itself.
- *
- * Banner/Native managers don't extend this: per the design's Global Constraint, they're never
- * subject to expiry, so their (simpler, expiry-free) cache bookkeeping stays separate.
  */
 abstract class CachedAdLoaderBase<TAd : Any>(
-    protected val config: PlacementConfig,
-    protected val adType: AdType,
-) {
-    protected abstract fun requestAd(adUnitId: String, onResult: (Result<TAd>) -> Unit)
+    config: PlacementConfig,
+    adType: AdType,
+) : SimpleCachedAdLoaderBase<TAd>(config, adType) {
 
-    private val loader: RetryingAdLoader<TAd> =
-        RetryingAdLoader(config, adType) { adUnitId, onResult -> requestAd(adUnitId, onResult) }
-
-    var scheduleRetry: (delayMs: Long, action: () -> Unit) -> Unit
-        get() = loader.scheduleRetry
-        set(value) { loader.scheduleRetry = value }
     var nowProvider: () -> Long = { System.currentTimeMillis() }
 
-    protected var cachedAd: TAd? = null
-        private set
     private var loadedAtMs: Long = 0L
 
-    open fun isReady(): Boolean {
+    override fun onLoaded(ad: TAd) {
+        loadedAtMs = nowProvider()
+    }
+
+    override fun isReady(): Boolean {
         val ageMs = nowProvider() - loadedAtMs
         return cachedAd != null && ageMs < config.expiryMs
     }
@@ -43,30 +36,6 @@ abstract class CachedAdLoaderBase<TAd : Any>(
     protected fun dropIfExpired() {
         if (cachedAd != null && nowProvider() - loadedAtMs >= config.expiryMs) {
             cachedAd = null
-        }
-    }
-
-    open fun load(onResult: (AdLoadResult) -> Unit) {
-        if (!config.enabled) {
-            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOAD_FAILED, "disabled")
-            onResult(AdLoadResult.Failure(AdFlowError(-1, "placement disabled")))
-            return
-        }
-        if (config.loadRule?.isAllowed(config.placementId) == false) {
-            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOAD_FAILED, "loadRule rejected")
-            onResult(AdLoadResult.Failure(AdFlowError(-2, "load rule rejected")))
-            return
-        }
-        if (isReady()) {
-            onResult(AdLoadResult.Success)
-            return
-        }
-        loader.start { result, ad ->
-            if (result is AdLoadResult.Success && ad != null) {
-                cachedAd = ad
-                loadedAtMs = nowProvider()
-            }
-            onResult(result)
         }
     }
 
