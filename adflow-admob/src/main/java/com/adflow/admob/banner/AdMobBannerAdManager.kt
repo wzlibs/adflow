@@ -24,7 +24,6 @@ open class AdMobBannerAdManager(
 ) : BannerAdManager {
 
     private var adView: AdView? = null
-    private var isLoading: Boolean = false
 
     private val loader: RetryingAdLoader<AdView> =
         RetryingAdLoader(config, AdType.BANNER) { adUnitId, onResult -> requestAd(adUnitId, onResult) }
@@ -46,13 +45,10 @@ open class AdMobBannerAdManager(
             onResult(AdLoadResult.Failure(AdFlowError(-2, "load rule rejected")))
             return
         }
-        if (isLoading) return
-        isLoading = true
         loader.start { result, view ->
             if (result is AdLoadResult.Success && view != null) {
                 adView = view
             }
-            isLoading = false
             onResult(result)
         }
     }

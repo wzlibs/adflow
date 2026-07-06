@@ -61,6 +61,40 @@ class RetryingAdLoaderTest {
     }
 
     @Test
+    fun `a second start() call while one is already in flight is queued, not dropped`() {
+        val fakeScheduler = mutableListOf<() -> Unit>()
+        val config = PlacementConfig(
+            placementId = "p1",
+            adUnitIds = listOf("A"),
+            retryPolicy = RetryPolicy(initialDelayMs = 1, multiplier = 1.0, maxDelayMs = 1, maxRetries = 1),
+        )
+        var attempts = 0
+        val loader = RetryingAdLoader<String>(config, AdType.INTERSTITIAL) { _, onResult ->
+            attempts += 1
+            onResult(Result.failure(RuntimeException("no fill")))
+        }
+        loader.scheduleRetry = { _, action -> fakeScheduler += action }
+
+        var firstResult: AdLoadResult? = null
+        var secondResult: AdLoadResult? = null
+        loader.start { r, _ -> firstResult = r }
+        assertEquals(1, fakeScheduler.size) // first pass failed, one retry scheduled, still in flight
+
+        // A second caller starts a load while the first is still retrying - it must not be silently
+        // dropped: it should observe the same eventual outcome as the in-flight attempt, and must
+        // NOT restart the waterfall from scratch (attempts stays governed by the one in-flight run).
+        loader.start { r, _ -> secondResult = r }
+        assertEquals(null, secondResult) // still queued, waiting on the same in-flight attempt
+        assertEquals(1, fakeScheduler.size) // no second, independent retry was scheduled
+
+        fakeScheduler.removeAt(0).invoke() // run the retry synchronously; retries are exhausted after this
+
+        assertTrue(firstResult is AdLoadResult.Failure)
+        assertTrue(secondResult is AdLoadResult.Failure)
+        assertEquals(2, attempts) // one waterfall pass (1 ad unit) x 2 attempts (initial + 1 retry)
+    }
+
+    @Test
     fun `retry delay follows the configured retry policy backoff schedule`() {
         val delays = mutableListOf<Long>()
         val fakeScheduler = mutableListOf<() -> Unit>()

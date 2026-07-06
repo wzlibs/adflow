@@ -20,7 +20,6 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
 
     private var cachedAd: TAd? = null
     private var loadedAtMs: Long = 0L
-    private var isLoading: Boolean = false
 
     override fun isReady(): Boolean {
         val ageMs = nowProvider() - loadedAtMs
@@ -50,14 +49,11 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
             onResult(AdLoadResult.Success)
             return
         }
-        if (isLoading) return
-        isLoading = true
         loader.start { result, ad ->
             if (result is AdLoadResult.Success && ad != null) {
                 cachedAd = ad
                 loadedAtMs = nowProvider()
             }
-            isLoading = false
             onResult(result)
         }
     }
@@ -68,7 +64,8 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
             AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "not ready")
             callback.onShowBlocked(BlockReason.NOT_READY)
             // Self-heal: retrigger a load so this placement doesn't stay stuck reporting not-ready
-            // forever - it's a no-op if one is already in flight, via load()'s isLoading guard.
+            // forever - load() safely joins an already in-flight attempt instead of starting a
+            // second, independent one (see RetryingAdLoader).
             load()
             return
         }
@@ -82,11 +79,32 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
             callback.onShowBlocked(BlockReason.INTERVAL_NOT_ELAPSED)
             return
         }
-        val ad = cachedAd ?: return
+        // isReady() just returned true above, which requires cachedAd != null - fail loudly instead
+        // of silently swallowing the show() call if that invariant is ever violated.
+        val ad = requireNotNull(cachedAd)
         cachedAd = null
-        AdShowIntervalPolicy.recordShown(adType, nowProvider())
         AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOWN)
-        performShow(ad, activity, callback)
-        if (config.preloadEnabled) load()
+        performShow(
+            ad,
+            activity,
+            object : ShowCallback {
+                override fun onAdShown() = callback.onAdShown()
+
+                override fun onAdDismissed() {
+                    // The interval cooldown starts once the user actually finishes viewing the ad,
+                    // not the instant we asked the SDK to display it: display duration varies per
+                    // ad and isn't something we control, so anchoring on "show" would under-count
+                    // the real gap between ads the user experiences.
+                    AdShowIntervalPolicy.recordShown(adType, nowProvider())
+                    callback.onAdDismissed()
+                    if (config.preloadEnabled) load()
+                }
+
+                override fun onAdFailedToShow(error: AdFlowError) {
+                    callback.onAdFailedToShow(error)
+                    if (config.preloadEnabled) load()
+                }
+            },
+        )
     }
 }

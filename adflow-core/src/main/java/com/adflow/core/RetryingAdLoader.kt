@@ -19,13 +19,23 @@ class RetryingAdLoader<TAd>(
         { delayMs, action -> android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(action, delayMs) }
 
     private var retryAttempt: Int = 0
+    private var isRunning: Boolean = false
+    private val pendingCallbacks = mutableListOf<(AdLoadResult, TAd?) -> Unit>()
 
+    /**
+     * Starts a load, or - if one is already in flight (mid-retry-backoff) - joins it instead of
+     * starting a second, independent waterfall pass. Every caller's [onResult] is guaranteed to be
+     * invoked exactly once, with the single in-flight attempt's eventual outcome.
+     */
     fun start(onResult: (AdLoadResult, TAd?) -> Unit) {
+        pendingCallbacks += onResult
+        if (isRunning) return
+        isRunning = true
         retryAttempt = 0
-        attempt(onResult)
+        attempt()
     }
 
-    private fun attempt(onResult: (AdLoadResult, TAd?) -> Unit) {
+    private fun attempt() {
         AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOADING)
         val loader = WaterfallLoader(config.adUnitIds) { adUnitId, cb ->
             AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.WATERFALL_NEXT, adUnitId)
@@ -36,13 +46,13 @@ class RetryingAdLoader<TAd>(
                 onSuccess = { ad ->
                     retryAttempt = 0
                     AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOADED)
-                    onResult(AdLoadResult.Success, ad)
+                    finish(AdLoadResult.Success, ad)
                 },
                 onFailure = { error ->
                     AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.NO_FILL)
                     retryAttempt += 1
                     if (retryAttempt > config.retryPolicy.maxRetries) {
-                        onResult(AdLoadResult.Failure(AdFlowError(-3, error.message ?: "waterfall exhausted")), null)
+                        finish(AdLoadResult.Failure(AdFlowError(-3, error.message ?: "waterfall exhausted")), null)
                         return@fold
                     }
                     val delayMs = config.retryPolicy.delayForAttempt(retryAttempt)
@@ -52,9 +62,16 @@ class RetryingAdLoader<TAd>(
                         AdFlowEvent.RETRYING,
                         "attempt=$retryAttempt delay=$delayMs",
                     )
-                    scheduleRetry(delayMs) { attempt(onResult) }
+                    scheduleRetry(delayMs) { attempt() }
                 },
             )
         }
+    }
+
+    private fun finish(result: AdLoadResult, ad: TAd?) {
+        isRunning = false
+        val callbacks = pendingCallbacks.toList()
+        pendingCallbacks.clear()
+        callbacks.forEach { it(result, ad) }
     }
 }

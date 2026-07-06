@@ -35,6 +35,7 @@ class FullScreenAdManagerBaseTest {
     @After
     fun tearDown() {
         AdFlowCore.reset()
+        AdShowIntervalPolicy.reset()
     }
 
     @Test
@@ -160,13 +161,14 @@ class FullScreenAdManagerBaseTest {
     }
 
     @Test
-    fun `successful show consumes the cached ad and preloads again when enabled`() {
+    fun `successful show consumes the cached ad and preloads again once the ad is dismissed`() {
         val config = PlacementConfig(
             placementId = "p1",
             adUnitIds = listOf("A"),
             preloadEnabled = true,
         )
         var loadCount = 0
+        var deferredDismiss: (() -> Unit)? = null
         val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
             override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
                 loadCount += 1
@@ -174,11 +176,78 @@ class FullScreenAdManagerBaseTest {
             }
             override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
                 callback.onAdShown()
+                deferredDismiss = { callback.onAdDismissed() } // simulate the ad still being on screen
+            }
+        }
+        manager.load {}
+        assertEquals(1, loadCount)
+
+        manager.show(activity, ShowCallback.NONE)
+        assertEquals(1, loadCount) // ad is still on screen (not dismissed yet) - no preload yet
+
+        deferredDismiss?.invoke()
+        assertEquals(2, loadCount) // preload triggered only once the ad was actually dismissed
+    }
+
+    @Test
+    fun `preload also triggers when the ad fails to show, not only on dismiss`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"), preloadEnabled = true)
+        var loadCount = 0
+        val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                loadCount += 1
+                onResult(Result.success("ad-$loadCount"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+                callback.onAdFailedToShow(AdFlowError(-1, "boom"))
             }
         }
         manager.load {}
         assertEquals(1, loadCount)
         manager.show(activity, ShowCallback.NONE)
-        assertEquals(2, loadCount) // preload triggered a second load
+        assertEquals(2, loadCount)
+    }
+
+    @Test
+    fun `show-interval is recorded when the ad is dismissed, not when show() is invoked`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        var deferredDismiss: (() -> Unit)? = null
+        val manager = object : FullScreenAdManagerBase<String>(config, AdType.INTERSTITIAL) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                onResult(Result.success("ad-A"))
+            }
+            override fun performShow(ad: String, activity: Activity, callback: ShowCallback) {
+                deferredDismiss = { callback.onAdDismissed() } // simulate the ad still being on screen
+            }
+        }
+        manager.nowProvider = { 1_000L }
+        manager.load {}
+        manager.show(activity, ShowCallback.NONE)
+
+        // The ad is still on screen - display duration is out of our control, so the interval clock
+        // must not start until the ad is actually dismissed, not the instant show() was called.
+        assertTrue(AdShowIntervalPolicy.canShow(AdType.INTERSTITIAL, now = 1_000L))
+
+        deferredDismiss?.invoke()
+        assertFalse(AdShowIntervalPolicy.canShow(AdType.INTERSTITIAL, now = 1_000L))
+    }
+
+    @Test
+    fun `onAdShown and onAdDismissed are forwarded to the caller's callback`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val manager = FakeManager(config, mutableMapOf("A" to Result.success("ad-A")))
+        manager.load {}
+
+        var shown = false
+        var dismissed = false
+        manager.show(
+            activity,
+            object : ShowCallback {
+                override fun onAdShown() { shown = true }
+                override fun onAdDismissed() { dismissed = true }
+            },
+        )
+        assertTrue(shown)
+        assertTrue(dismissed)
     }
 }

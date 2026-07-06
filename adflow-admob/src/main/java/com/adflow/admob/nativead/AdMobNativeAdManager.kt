@@ -27,7 +27,6 @@ open class AdMobNativeAdManager(
 ) : NativeAdManager {
 
     private var cachedAd: NativeAd? = null
-    private var isLoading: Boolean = false
 
     private val loader: RetryingAdLoader<NativeAd> =
         RetryingAdLoader(config, AdType.NATIVE) { adUnitId, onResult -> requestAd(adUnitId, onResult) }
@@ -49,13 +48,10 @@ open class AdMobNativeAdManager(
             onResult(AdLoadResult.Failure(AdFlowError(-2, "load rule rejected")))
             return
         }
-        if (isLoading) return
-        isLoading = true
         loader.start { result, ad ->
             if (result is AdLoadResult.Success && ad != null) {
                 cachedAd = ad
             }
-            isLoading = false
             onResult(result)
         }
     }

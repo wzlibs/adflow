@@ -54,7 +54,6 @@ open class AdMobRewardedAdManager(
 
     private var cachedAd: RewardedAd? = null
     private var loadedAtMs: Long = 0L
-    private var isLoading: Boolean = false
 
     override fun isReady(): Boolean =
         cachedAd != null && nowProvider() - loadedAtMs < config.expiryMs
@@ -82,14 +81,11 @@ open class AdMobRewardedAdManager(
             onResult(AdLoadResult.Success)
             return
         }
-        if (isLoading) return
-        isLoading = true
         loader.start { result, ad ->
             if (result is AdLoadResult.Success && ad != null) {
                 cachedAd = ad
                 loadedAtMs = nowProvider()
             }
-            isLoading = false
             onResult(result)
         }
     }
@@ -138,7 +134,8 @@ open class AdMobRewardedAdManager(
                 callback.onShowBlocked(BlockReason.NOT_READY)
             }
             // Self-heal: retrigger a load so this placement doesn't stay stuck reporting not-ready
-            // forever - it's a no-op if one is already in flight, via load()'s isLoading guard.
+            // forever - load() safely joins an already in-flight attempt instead of starting a
+            // second, independent one (see RetryingAdLoader).
             load()
             return
         }
@@ -151,16 +148,23 @@ open class AdMobRewardedAdManager(
         cachedAd = null
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdShowedFullScreenContent() = callback.onAdShown()
-            override fun onAdDismissedFullScreenContent() = callback.onAdDismissed()
+
+            override fun onAdDismissedFullScreenContent() {
+                callback.onAdDismissed()
+                // Preload the next ad once this one is actually done, not the instant show() was
+                // called - the display duration is out of our control.
+                if (config.preloadEnabled) load()
+            }
+
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
                 AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOW_FAILED, error.message)
                 callback.onAdFailedToShow(AdFlowError(error.code, error.message))
+                if (config.preloadEnabled) load()
             }
         }
         AdFlowCore.logger.log(placementId, AdType.REWARDED, AdFlowEvent.SHOWN)
         ad.show(activity) { rewardItem ->
             callback.onUserEarnedReward(RewardItem(rewardItem.type, rewardItem.amount))
         }
-        if (config.preloadEnabled) load()
     }
 }
