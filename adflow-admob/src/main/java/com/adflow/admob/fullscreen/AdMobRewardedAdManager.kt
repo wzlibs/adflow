@@ -2,11 +2,10 @@ package com.adflow.admob.fullscreen
 
 import android.app.Activity
 import android.content.Context
-import com.adflow.admob.precisionName
+import com.adflow.admob.dispatchRevenue
 import com.adflow.core.AdFlowCore
 import com.adflow.core.AdFlowError
 import com.adflow.core.AdFlowEvent
-import com.adflow.core.AdRevenueEvent
 import com.adflow.core.AdType
 import com.adflow.core.CachedAdLoaderBase
 import com.adflow.core.PlacementConfig
@@ -47,17 +46,7 @@ open class AdMobRewardedAdManager(
             object : RewardedAdLoadCallback() {
                 override fun onAdLoaded(ad: RewardedAd) {
                     ad.onPaidEventListener = OnPaidEventListener { adValue ->
-                        AdFlowCore.dispatchRevenue(
-                            AdRevenueEvent(
-                                placementId = placementId,
-                                adType = AdType.REWARDED,
-                                adUnitId = adUnitId,
-                                valueMicros = adValue.valueMicros,
-                                currencyCode = adValue.currencyCode,
-                                precision = precisionName(adValue.precisionType),
-                                adNetwork = ad.responseInfo?.loadedAdapterResponseInfo?.adSourceName,
-                            ),
-                        )
+                        dispatchRevenue(placementId, AdType.REWARDED, adUnitId, adValue, ad.responseInfo)
                     }
                     onResult(Result.success(ad))
                 }

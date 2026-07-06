@@ -2,18 +2,13 @@ package com.adflow.admob.fullscreen
 
 import android.app.Activity
 import android.content.Context
-import com.adflow.admob.precisionName
-import com.adflow.core.AdFlowCore
-import com.adflow.core.AdFlowError
-import com.adflow.core.AdRevenueEvent
+import com.adflow.admob.dispatchRevenue
 import com.adflow.core.AdType
 import com.adflow.core.FullScreenAdManagerBase
 import com.adflow.core.InterstitialAdManager
 import com.adflow.core.PlacementConfig
 import com.adflow.core.ShowCallback
-import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.OnPaidEventListener
 import com.google.android.gms.ads.interstitial.InterstitialAd
@@ -34,17 +29,7 @@ class AdMobInterstitialAdManager(
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
                     ad.onPaidEventListener = OnPaidEventListener { adValue ->
-                        AdFlowCore.dispatchRevenue(
-                            AdRevenueEvent(
-                                placementId = placementId,
-                                adType = AdType.INTERSTITIAL,
-                                adUnitId = adUnitId,
-                                valueMicros = adValue.valueMicros,
-                                currencyCode = adValue.currencyCode,
-                                precision = precisionName(adValue.precisionType),
-                                adNetwork = ad.responseInfo?.loadedAdapterResponseInfo?.adSourceName,
-                            ),
-                        )
+                        dispatchRevenue(placementId, AdType.INTERSTITIAL, adUnitId, adValue, ad.responseInfo)
                     }
                     onResult(Result.success(ad))
                 }
@@ -57,12 +42,7 @@ class AdMobInterstitialAdManager(
     }
 
     override fun performShow(ad: InterstitialAd, activity: Activity, callback: ShowCallback) {
-        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-            override fun onAdShowedFullScreenContent() = callback.onAdShown()
-            override fun onAdDismissedFullScreenContent() = callback.onAdDismissed()
-            override fun onAdFailedToShowFullScreenContent(error: AdError) =
-                callback.onAdFailedToShow(AdFlowError(error.code, error.message))
-        }
+        ad.fullScreenContentCallback = fullScreenContentCallback(callback)
         ad.show(activity)
     }
 }
