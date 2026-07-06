@@ -64,8 +64,8 @@ abstract class FullScreenAdManagerBase<TAd : Any>(
             AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "not ready")
             callback.onShowBlocked(BlockReason.NOT_READY)
             // Self-heal: retrigger a load so this placement doesn't stay stuck reporting not-ready
-            // forever - load() safely joins an already in-flight attempt instead of starting a
-            // second, independent one (see RetryingAdLoader).
+            // forever - harmless no-op if one is already in flight (RetryingAdLoader ignores a
+            // concurrent start() call rather than starting a second, independent one).
             load()
             return
         }
