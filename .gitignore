@@ -13,3 +13,8 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+
+# Các thư mục flutter/adflow_flutter*, example, example/android... đều là project IDE riêng biệt
+# khi mở bằng Android Studio (xem hướng dẫn trong README) - .idea/ ở đó chỉ là workspace state cá
+# nhân, không liên quan tới .idea/ ở root repo (nơi vẫn cố ý track gradle.xml/misc.xml dùng chung).
+flutter/**/.idea/
