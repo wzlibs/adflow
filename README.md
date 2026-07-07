@@ -141,6 +141,8 @@ AdMobConsentManager(
 )
 ```
 
+`debugGeography` chỉ có hiệu lực trên thiết bị đã được đăng ký làm test device qua `testDeviceHashedIds` - trên thiết bị chưa đăng ký, nó bị bỏ qua âm thầm (không lỗi, chỉ đơn giản chạy như production thật). Xem [hướng dẫn testing chính thức của Google](https://developers.google.com/admob/android/privacy#testing) để lấy đúng hashed ID cho thiết bị test của bạn.
+
 ## 5. Khai báo Placements
 
 AdFlow không có sẵn 1 class "danh sách placement" - mỗi app tự viết class riêng của mình theo pattern sau (đặt tên tùy ý, ví dụ `MyAdPlacements`):
