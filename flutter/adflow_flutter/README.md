@@ -1,10 +1,23 @@
 # adflow_flutter
 
-Flutter plugin bọc thư viện quảng cáo AdFlow (`:adflow-core` + `:adflow-admob`), hỗ trợ Interstitial, App Open, Rewarded, Native và Banner. **Hiện chỉ hỗ trợ Android** - iOS chưa implement (sẽ làm sau như 1 lib Swift riêng biệt). Plugin cũng **chưa publish lên pub.dev** - chỉ dùng được qua `path:` dependency.
+Flutter plugin bọc thư viện quảng cáo AdFlow (`:adflow-core` + `:adflow-admob`), hỗ trợ Interstitial, App Open, Rewarded, Native và Banner. **Hiện chỉ hỗ trợ Android** - iOS chưa implement (sẽ làm sau như 1 lib Swift riêng biệt).
 
 ## 1. Thêm vào project
 
-Trong `pubspec.yaml` của app Flutter:
+### Cách 1 - qua pub.dev (khuyến nghị)
+
+```bash
+flutter pub add adflow_flutter
+```
+
+hoặc thêm thủ công vào `pubspec.yaml`:
+
+```yaml
+dependencies:
+  adflow_flutter: ^0.1.0
+```
+
+### Cách 2 - qua `path:` (khi muốn test trực tiếp source chưa publish)
 
 ```yaml
 dependencies:
