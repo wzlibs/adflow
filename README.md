@@ -102,7 +102,46 @@ class MyApp : Application() {
 - `AdFlowCore.runOnFirstForeground { ... }` đảm bảo phần init SDK + load ads chỉ chạy khi có Activity thật sự vào foreground, không chạy nếu process chỉ được đánh thức để làm việc nền.
 - `AppOpenAdController(application, appOpen).start()` lo việc tự show App Open ad mỗi khi app foreground; không cần tự gọi `show()` cho placement này ở nơi khác trừ khi muốn hiển thị thủ công.
 
-## 4. Khai báo Placements
+## 4. GDPR/quyền riêng tư (Consent)
+
+AdFlow bọc [Google User Messaging Platform (UMP)](https://developers.google.com/admob/android/privacy) - CMP chính thức của Google, tự phát hiện khu vực (EEA/UK) cần xin consent, app không cần tự viết logic phát hiện vùng.
+
+`ConsentManager` là 1 primitive độc lập - **không có vị trí bắt buộc phải gọi**. Chọn 1 `Activity` nào tiện (Activity đầu tiên của app là lựa chọn tự nhiên nhất) và gọi:
+
+```kotlin
+placements.provider.createConsentManager(activity).requestConsentIfNeeded(activity) { error ->
+    // resolve xong (có thể đã hiện form, hoặc không cần vì ngoài EEA/UK) - gọi lại load() ở đây
+    // cho các placement muốn dùng ngay, phòng trường hợp lần load() trước đó (nếu có) đã bị chặn
+    // vì consent chưa resolve.
+    placements.splashInterstitial.load()
+    placements.globalInterstitial.load()
+    // ...
+}
+```
+
+**Không cần tự viết điều kiện check consent trước khi gọi `load()`** - `load()` tự động tôn trọng consent (mặc định cho phép nếu app không tích hợp `ConsentManager`, để không phá vỡ hành vi hiện có). Nếu gọi `load()` trước khi consent resolve, nó chỉ fail an toàn (giống bị `enabled = false`), không crash, không mất placement - gọi lại `load()` sau khi `requestConsentIfNeeded` hoàn tất là đủ để load thật.
+
+Chính sách AdMob/Google Play yêu cầu có lối vào để user xem lại/đổi consent đã chọn - chỉ hiện khi cần:
+
+```kotlin
+val consentManager = placements.provider.createConsentManager(context)
+if (consentManager.getPrivacyOptionsRequirement() == PrivacyOptionsRequirement.REQUIRED) {
+    // hiện nút/menu "Privacy options", bấm vào gọi:
+    consentManager.showPrivacyOptionsForm(activity) { error -> }
+}
+```
+
+Để test flow EEA khi máy/thiết bị test không ở EEA thật, dùng `AdMobConsentManager` (implementation cụ thể của `adflow-admob`) với debug settings:
+
+```kotlin
+AdMobConsentManager(
+    context,
+    debugGeography = ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA,
+    testDeviceHashedIds = listOf("TEST-DEVICE-HASHED-ID"),
+)
+```
+
+## 5. Khai báo Placements
 
 AdFlow không có sẵn 1 class "danh sách placement" - mỗi app tự viết class riêng của mình theo pattern sau (đặt tên tùy ý, ví dụ `MyAdPlacements`):
 
@@ -163,7 +202,7 @@ Các field hay dùng của `PlacementConfig`:
 - `loadRule` / `showRule` - kiểu `AdRule { isAllowed(placementId): Boolean }`, dùng để tắt load/show có điều kiện (ví dụ user đã mua gói premium thì trả về `false`).
 - `retryPolicy` và `expiryMs` có giá trị mặc định hợp lý (retry backoff khi load lỗi, ad hết hạn sau 4 giờ) - chỉ cần chỉnh khi có yêu cầu đặc biệt.
 
-## 5. Hiển thị từng loại ad
+## 6. Hiển thị từng loại ad
 
 **Interstitial / App Open** (show thủ công - App Open còn có thể tự show qua `AppOpenAdController` ở mục 3):
 
@@ -219,7 +258,7 @@ if (placements.native.isReady()) {
 
 `BannerAdView`/`NativeAdView` tự kiểm tra `isReady()` bên trong, nhưng Compose sẽ không tự recompose khi ad load xong ở background - nên bọc thêm 1 state được cập nhật qua polling `isReady()` (ví dụ vòng lặp `delay(500)` trong `LaunchedEffect`) nếu muốn ad tự xuất hiện ngay khi sẵn sàng thay vì chỉ ở lần recompose kế tiếp.
 
-## 6. Tùy chỉnh tần suất hiển thị
+## 7. Tùy chỉnh tần suất hiển thị
 
 Mặc định AdFlow áp 1 khoảng nghỉ tối thiểu giữa các lần hiển thị Interstitial/App Open để tránh làm phiền user. Tùy chỉnh qua `ShowIntervalConfig` khi gọi `configure()`:
 
@@ -234,7 +273,7 @@ AdFlowCore.configure(
 )
 ```
 
-## 7. Theo dõi doanh thu (tùy chọn)
+## 8. Theo dõi doanh thu (tùy chọn)
 
 Đăng ký 1 `RevenueLogger` để forward sự kiện doanh thu sang hệ thống đo lường của app (Adjust, AppsFlyer, Firebase...):
 
@@ -245,7 +284,7 @@ AdFlowCore.addRevenueLogger(RevenueLogger { event: AdRevenueEvent ->
 })
 ```
 
-## 8. Logging (tùy chọn)
+## 9. Logging (tùy chọn)
 
 Mặc định AdFlow log qua Logcat (`LogcatAdFlowLogger`). Truyền 1 `AdFlowLogger` tùy biến vào `configure()` nếu muốn gửi log đi nơi khác:
 
@@ -257,6 +296,6 @@ AdFlowCore.configure(logger = object : AdFlowLogger {
 })
 ```
 
-## 9. Trước khi release
+## 10. Trước khi release
 
 Toàn bộ App ID và Ad Unit ID dùng trong ví dụ ở tài liệu này (`ca-app-pub-3940256099942544/...`) là **ID test chính thức của Google**. Trước khi phát hành app, phải thay bằng App ID và Ad Unit ID thật được tạo trong tài khoản AdMob của app - dùng ID test khi release sẽ vi phạm chính sách AdMob.

@@ -37,6 +37,7 @@ android {
 dependencies {
     api(project(":adflow-core"))
     implementation(libs.play.services.ads)
+    implementation(libs.user.messaging.platform)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)

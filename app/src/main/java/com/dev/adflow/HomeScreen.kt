@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.adflow.admob.banner.compose.BannerAdView
 import com.adflow.admob.nativead.compose.NativeAdView
+import com.adflow.core.PrivacyOptionsRequirement
 import com.adflow.core.RewardItem
 import com.adflow.core.RewardedAdCallback
 import com.adflow.core.ShowCallback
@@ -31,6 +32,10 @@ fun HomeScreen(placements: DemoAdPlacements) {
     val context = LocalContext.current
     var premium by remember { mutableStateOf(PremiumState.isPremium) }
     var lastReward by remember { mutableStateOf<RewardItem?>(null) }
+    // Tạo mới ConsentManager ở đây là an toàn - nó chỉ bọc lại 1 ConsentInformation singleton dùng
+    // chung trong toàn app (UserMessagingPlatform.getConsentInformation() trả về cùng 1 instance).
+    val consentManager = remember { placements.provider.createConsentManager(context) }
+    val privacyOptionsRequired = consentManager.getPrivacyOptionsRequirement() == PrivacyOptionsRequirement.REQUIRED
 
     // NativeAdView/BannerAdView đều tự check lại isReady() ở mỗi lần recomposition, nhưng
     // không có gì ở đây kích hoạt recomposition khi ad load xong ở background, nên 1 ad
@@ -85,6 +90,14 @@ fun HomeScreen(placements: DemoAdPlacements) {
         Button(onClick = {
             (context as? android.app.Activity)?.let { placements.appOpen.show(it, ShowCallback.NONE) }
         }) { Text("Show App Open Ad") }
+
+        // Chỉ hiện lối vào này khi UMP yêu cầu (thường do user đã từng đồng ý và cần cách đổi ý
+        // sau) - đây là yêu cầu bắt buộc theo chính sách AdMob/Google Play, không phải tuỳ chọn.
+        if (privacyOptionsRequired) {
+            Button(onClick = {
+                (context as? android.app.Activity)?.let { consentManager.showPrivacyOptionsForm(it) {} }
+            }) { Text("Privacy options") }
+        }
 
         // Đọc nativeReady/bannerReady ở đây (dù các composable đã tự check lại isReady())
         // chính là thứ gắn recomposition với các thay đổi trạng thái ad-ready.

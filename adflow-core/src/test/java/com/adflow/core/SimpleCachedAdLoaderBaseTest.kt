@@ -108,6 +108,32 @@ class SimpleCachedAdLoaderBaseTest {
     }
 
     @Test
+    fun `load reports consent-blocked failure without touching the network when canRequestAds is false`() {
+        var requestCount = 0
+        val manager = object : SimpleCachedAdLoaderBase<String>(
+            PlacementConfig(placementId = "p1", adUnitIds = listOf("A")),
+            AdType.BANNER,
+        ) {
+            override fun requestAd(adUnitId: String, onResult: (Result<String>) -> Unit) {
+                requestCount += 1
+                onResult(Result.success("ad"))
+            }
+        }
+
+        AdFlowCore.updateConsent(false)
+        var result: AdLoadResult? = null
+        manager.load { result = it }
+
+        assertTrue(result is AdLoadResult.Failure)
+        assertEquals(0, requestCount)
+
+        AdFlowCore.updateConsent(true)
+        manager.load { result = it }
+        assertEquals(AdLoadResult.Success, result)
+        assertEquals(1, requestCount)
+    }
+
+    @Test
     fun `onLoaded fires exactly once per genuine new load, after cachedAd is already set`() {
         var onLoadedCallCount = 0
         var cachedAdWhenOnLoadedFired: String? = null

@@ -2,6 +2,7 @@ package com.adflow.admob
 
 import android.content.Context
 import com.adflow.admob.banner.AdMobBannerAdManager
+import com.adflow.admob.consent.AdMobConsentManager
 import com.adflow.admob.fullscreen.AdMobAppOpenAdManager
 import com.adflow.admob.fullscreen.AdMobInterstitialAdManager
 import com.adflow.admob.fullscreen.AdMobRewardedAdManager
@@ -9,6 +10,7 @@ import com.adflow.admob.nativead.AdMobNativeAdManager
 import com.adflow.core.AdNetworkProvider
 import com.adflow.core.AppOpenAdManager
 import com.adflow.core.BannerAdManager
+import com.adflow.core.ConsentManager
 import com.adflow.core.InterstitialAdManager
 import com.adflow.core.NativeAdManager
 import com.adflow.core.PlacementConfig
@@ -27,6 +29,8 @@ class AdMobProvider(context: Context) : AdNetworkProvider {
     override fun initialize(context: Context, onComplete: () -> Unit) {
         MobileAds.initialize(context) { onComplete() }
     }
+
+    override fun createConsentManager(context: Context): ConsentManager = AdMobConsentManager(context)
 
     override fun createInterstitial(config: PlacementConfig): InterstitialAdManager =
         AdMobInterstitialAdManager(context, config)

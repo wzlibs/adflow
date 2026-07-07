@@ -4,6 +4,7 @@ import android.content.Context
 
 interface AdNetworkProvider {
     fun initialize(context: Context, onComplete: () -> Unit = {})
+    fun createConsentManager(context: Context): ConsentManager
     fun createInterstitial(config: PlacementConfig): InterstitialAdManager
     fun createAppOpen(config: PlacementConfig): AppOpenAdManager
     fun createRewarded(config: PlacementConfig): RewardedAdManager
