@@ -14,7 +14,7 @@ hoặc thêm thủ công vào `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  adflow_flutter: ^0.1.0
+  adflow_flutter: ^0.2.0
 ```
 
 ### Cách 2 - qua `path:` (khi muốn test trực tiếp source chưa publish)
@@ -29,7 +29,7 @@ dependencies:
 
 ### Bước bắt buộc - khai báo repository JitPack
 
-`adflow_flutter` phụ thuộc `adflow-core`/`adflow-admob`, được publish qua [JitPack](https://jitpack.io) (`com.github.wzlibs.adflow:core`/`admob`). Gradle **không tự động** cho app tiêu thụ thấy được repository này chỉ vì plugin đã khai báo nó - dependency của 1 configuration chỉ resolve qua repositories khai báo ở project sở hữu configuration đó (ở đây là chính app của bạn), không "mượn" repository của plugin dù có quan hệ dependency trực tiếp. Nếu bỏ qua bước này, build sẽ báo `Could not find com.github.wzlibs.adflow:core:v0.1.0`.
+`adflow_flutter` phụ thuộc `adflow-core`/`adflow-admob`, được publish qua [JitPack](https://jitpack.io) (`com.github.wzlibs.adflow:core`/`admob`). Gradle **không tự động** cho app tiêu thụ thấy được repository này chỉ vì plugin đã khai báo nó - dependency của 1 configuration chỉ resolve qua repositories khai báo ở project sở hữu configuration đó (ở đây là chính app của bạn), không "mượn" repository của plugin dù có quan hệ dependency trực tiếp. Nếu bỏ qua bước này, build sẽ báo `Could not find com.github.wzlibs.adflow:core:v0.2.0`.
 
 Thêm vào `android/build.gradle.kts` của app (theo đúng mẫu đang dùng ở `flutter/adflow_flutter/example/android/build.gradle.kts`):
 
@@ -112,7 +112,40 @@ class AdPlacements {
 await placements.splashInterstitial.setEnabled(!isPremium);
 ```
 
-## 5. Hiển thị từng loại ad
+## 5. GDPR/quyền riêng tư (Consent)
+
+`adflow_flutter` bọc [Google User Messaging Platform (UMP)](https://developers.google.com/admob/android/privacy) - CMP chính thức của Google, tự phát hiện khu vực (EEA/UK) cần xin consent, app không cần tự viết logic phát hiện vùng.
+
+Đây là 1 primitive độc lập - gọi `AdFlowCore.requestConsentIfNeeded()` ở bất kỳ đâu/lúc nào tuỳ ý, không có vị trí bắt buộc:
+
+```dart
+unawaited(AdFlowCore.requestConsentIfNeeded().then((_) => placements.loadAll()));
+```
+
+**Không cần tự viết điều kiện check consent trước khi gọi `load()`** - `load()` (ở mọi loại ad) tự động tôn trọng consent. Gọi `load()` trước khi consent resolve chỉ fail an toàn (giống bị `enabled: false`), không crash, không mất placement - gọi lại `load()` sau khi `requestConsentIfNeeded()` hoàn tất là đủ để load thật.
+
+Chính sách AdMob/Google Play yêu cầu có lối vào để user xem lại/đổi consent đã chọn - chỉ hiện khi cần:
+
+```dart
+final requirement = await AdFlowCore.getPrivacyOptionsRequirement();
+if (requirement == PPrivacyOptionsRequirement.required) {
+  // hiện nút/menu "Privacy options", bấm vào gọi:
+  await AdFlowCore.showPrivacyOptionsForm();
+}
+```
+
+Để test flow EEA khi thiết bị test không ở EEA thật:
+
+```dart
+await AdFlowCore.requestConsentIfNeeded(
+  debugGeography: PDebugGeography.eea,
+  testDeviceHashedIds: ['TEST-DEVICE-HASHED-ID'],
+);
+```
+
+`debugGeography` chỉ có hiệu lực trên thiết bị đã được đăng ký làm test device qua `testDeviceHashedIds` - trên thiết bị chưa đăng ký, nó bị bỏ qua âm thầm (không lỗi, chỉ đơn giản chạy như production thật). Xem [hướng dẫn testing chính thức của Google](https://developers.google.com/admob/android/privacy#testing) để lấy đúng hashed ID cho thiết bị test của bạn.
+
+## 6. Hiển thị từng loại ad
 
 **Interstitial:**
 
@@ -167,7 +200,7 @@ if (nativeReady) AdFlowNativeAdView(ad: placements.native),
 
 Với cả banner lẫn native: **chỉ build widget sau khi `await ad.load()` đã thành công** - `load()` trả về 1 `Future` thật, tự nó đã đủ để biết chính xác thời điểm ad sẵn sàng, không cần polling `isReady()` thêm.
 
-## 6. Tùy chỉnh tần suất hiển thị
+## 7. Tùy chỉnh tần suất hiển thị
 
 ```dart
 await AdFlowCore.initialize(
@@ -180,7 +213,7 @@ await AdFlowCore.initialize(
 );
 ```
 
-## 7. Theo dõi doanh thu (tùy chọn)
+## 8. Theo dõi doanh thu (tùy chọn)
 
 ```dart
 AdFlowCore.addRevenueLogger((event) {
@@ -189,7 +222,7 @@ AdFlowCore.addRevenueLogger((event) {
 });
 ```
 
-## 8. Trước khi release
+## 9. Trước khi release
 
 Toàn bộ App ID/Ad Unit ID trong ví dụ ở tài liệu này là **ID test chính thức của Google**. Phải thay bằng ID thật trước khi phát hành - dùng ID test khi release sẽ vi phạm chính sách AdMob.
 
@@ -198,7 +231,7 @@ Toàn bộ App ID/Ad Unit ID trong ví dụ ở tài liệu này là **ID test c
 - `AdRule` (loadRule/showRule) không bridge qua channel được - chỉ hỗ trợ on/off qua `setEnabled()`; logic gating phức tạp hơn (cooldown, theo giờ...) phải tự viết ở tầng Dart.
 - Banner cố định `AdSize.BANNER` (320x50) - chưa hỗ trợ adaptive banner.
 - Native renderer cố định `DefaultMediumNativeAdRenderer` - chưa expose custom renderer qua Dart.
-- Tag JitPack trong `android/build.gradle.kts` (`com.github.wzlibs.adflow:core:v0.1.0`/`admob:v0.1.0`) phải bump thủ công mỗi khi `adflow-core`/`adflow-admob` ra tag mới - quên bump sẽ khiến plugin build với version cũ một cách âm thầm.
+- Tag JitPack trong `android/build.gradle.kts` (`com.github.wzlibs.adflow:core:v0.2.0`/`admob:v0.2.0`) phải bump thủ công mỗi khi `adflow-core`/`adflow-admob` ra tag mới - quên bump sẽ khiến plugin build với version cũ một cách âm thầm.
 - `show()` cần 1 `Activity` đang attach với Flutter engine - gọi quá sớm (chưa có Activity nào) sẽ bị bỏ qua âm thầm, không crash.
 - `RetryPolicy` mặc định có thể khiến `load()` treo tới ~135s ở trường hợp xấu nhất (backoff 5+10+20+40+60s) - cần tính vào UX loading của app.
 - iOS: chưa hỗ trợ.

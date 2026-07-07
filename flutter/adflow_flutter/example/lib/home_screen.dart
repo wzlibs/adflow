@@ -20,12 +20,20 @@ class _HomeScreenState extends State<HomeScreen> {
   PRewardItem? _lastReward;
   bool _bannerReady = false;
   bool _nativeReady = false;
+  bool _privacyOptionsRequired = false;
 
   @override
   void initState() {
     super.initState();
     _pollBannerReady();
     _pollNativeReady();
+    _loadPrivacyOptionsRequirement();
+  }
+
+  Future<void> _loadPrivacyOptionsRequirement() async {
+    final requirement = await AdFlowCore.getPrivacyOptionsRequirement();
+    if (!mounted) return;
+    setState(() => _privacyOptionsRequired = requirement == PPrivacyOptionsRequirement.required);
   }
 
   Future<void> _pollBannerReady() async {
@@ -93,6 +101,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => widget.placements.appOpen.show(),
                 child: const Text('Show App Open Ad'),
               ),
+              // Chỉ hiện lối vào này khi UMP yêu cầu - đây là yêu cầu bắt buộc theo chính sách
+              // AdMob/Google Play, không phải tuỳ chọn.
+              if (_privacyOptionsRequired)
+                ElevatedButton(
+                  onPressed: () => AdFlowCore.showPrivacyOptionsForm(),
+                  child: const Text('Privacy options'),
+                ),
               if (_nativeReady) AdFlowNativeAdView(ad: widget.placements.native),
             ],
           ),

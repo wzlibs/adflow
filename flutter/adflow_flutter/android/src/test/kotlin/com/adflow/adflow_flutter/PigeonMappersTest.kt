@@ -8,6 +8,8 @@ import com.adflow.core.AdLoadResult
 import com.adflow.core.AdRevenueEvent
 import com.adflow.core.AdType
 import com.adflow.core.BlockReason
+import com.adflow.core.ConsentStatus
+import com.adflow.core.PrivacyOptionsRequirement
 import com.adflow.core.RewardItem
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -55,6 +57,13 @@ class PigeonMappersTest {
         assertEquals("DISABLED", BlockReason.DISABLED.toPigeon().name)
         assertEquals("ANOTHER_AD_SHOWING", BlockReason.ANOTHER_AD_SHOWING.toPigeon().name)
         assertEquals("APP_OPEN", AdType.APP_OPEN.toPigeon().name)
+    }
+
+    @Test
+    fun `ConsentStatus and PrivacyOptionsRequirement map by enum name`() {
+        assertEquals("OBTAINED", ConsentStatus.OBTAINED.toPigeon().name)
+        assertEquals("NOT_REQUIRED", ConsentStatus.NOT_REQUIRED.toPigeon().name)
+        assertEquals("REQUIRED", PrivacyOptionsRequirement.REQUIRED.toPigeon().name)
     }
 
     @Test

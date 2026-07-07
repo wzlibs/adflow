@@ -4,8 +4,10 @@ import com.adflow.adflow_flutter.generated.PAdFlowError
 import com.adflow.adflow_flutter.generated.PAdRevenueEvent
 import com.adflow.adflow_flutter.generated.PAdType
 import com.adflow.adflow_flutter.generated.PBlockReason
+import com.adflow.adflow_flutter.generated.PConsentStatus
 import com.adflow.adflow_flutter.generated.PLoadResult
 import com.adflow.adflow_flutter.generated.PPlacementConfig
+import com.adflow.adflow_flutter.generated.PPrivacyOptionsRequirement
 import com.adflow.adflow_flutter.generated.PRewardItem
 import com.adflow.adflow_flutter.generated.PRetryPolicy
 import com.adflow.adflow_flutter.generated.PShowIntervalConfig
@@ -14,7 +16,9 @@ import com.adflow.core.AdLoadResult
 import com.adflow.core.AdRevenueEvent
 import com.adflow.core.AdType
 import com.adflow.core.BlockReason
+import com.adflow.core.ConsentStatus
 import com.adflow.core.PlacementConfig
+import com.adflow.core.PrivacyOptionsRequirement
 import com.adflow.core.RetryPolicy
 import com.adflow.core.RewardItem
 import com.adflow.core.ShowIntervalConfig
@@ -59,6 +63,11 @@ internal fun AdFlowError.toPigeon(): PAdFlowError = PAdFlowError(code = code.toL
 internal fun BlockReason.toPigeon(): PBlockReason = PBlockReason.valueOf(name)
 
 internal fun AdType.toPigeon(): PAdType = PAdType.valueOf(name)
+
+internal fun ConsentStatus.toPigeon(): PConsentStatus = PConsentStatus.valueOf(name)
+
+internal fun PrivacyOptionsRequirement.toPigeon(): PPrivacyOptionsRequirement =
+    PPrivacyOptionsRequirement.valueOf(name)
 
 internal fun RewardItem.toPigeon(): PRewardItem = PRewardItem(type = type, amount = amount.toLong())
 

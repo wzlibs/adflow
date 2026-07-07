@@ -16,6 +16,16 @@ import 'package:pigeon/pigeon.dart';
 
 enum PAdType { interstitial, appOpen, rewarded, native, banner }
 
+// Khớp ConsentStatus.kt / PrivacyOptionsRequirement.kt (adflow-core) - case tên trùng hệt nên map
+// bằng .valueOf(name) phía Kotlin, không cần when thủ công (xem PigeonMappers.kt).
+enum PConsentStatus { unknown, notRequired, required, obtained }
+
+enum PPrivacyOptionsRequirement { unknown, notRequired, required }
+
+// Không có enum core tương ứng - chỉ là Int constant ConsentDebugSettings.DebugGeography bên UMP,
+// map thủ công phía Kotlin (xem PigeonMappers.kt).
+enum PDebugGeography { disabled, eea, notEea }
+
 // Khớp BlockReason.kt: DISABLED, RULE_REJECTED, INTERVAL_NOT_ELAPSED, NOT_READY, ANOTHER_AD_SHOWING.
 enum PBlockReason {
   disabled,
@@ -135,6 +145,28 @@ abstract class AdFlowCoreHostApi {
   /// Đăng ký đúng 1 RevenueLoggerBridge phía Kotlin, forward sự kiện qua
   /// [AdFlowFlutterApi.onRevenuePaid]. Gọi lại nhiều lần là no-op (idempotent).
   void addRevenueLogger();
+
+  // GDPR/consent (xem ConsentManager.kt) - 1 khái niệm toàn app (singleton), không phải
+  // per-placement nên gộp vào đây thay vì 1 HostApi riêng.
+  PConsentStatus getConsentStatus();
+
+  PPrivacyOptionsRequirement getPrivacyOptionsRequirement();
+
+  bool canRequestAds();
+
+  /// Xin consent nếu cần - no-op nếu ngoài khu vực cần (EEA/UK). [debugGeography]/
+  /// [testDeviceHashedIds] chỉ dùng để test flow EEA (xem README), để null/rỗng cho production.
+  /// Không cần tham số Activity - Kotlin tự lấy PlacementRegistry.currentActivity.
+  @async
+  PAdFlowError? requestConsentIfNeeded(
+    PDebugGeography? debugGeography,
+    List<String> testDeviceHashedIds,
+  );
+
+  /// Cho user xem lại/đổi consent đã có - chỉ nên gọi khi getPrivacyOptionsRequirement() ==
+  /// PPrivacyOptionsRequirement.required.
+  @async
+  PAdFlowError? showPrivacyOptionsForm();
 }
 
 @HostApi()

@@ -115,6 +115,25 @@ enum PAdType {
   banner,
 }
 
+enum PConsentStatus {
+  unknown,
+  notRequired,
+  required,
+  obtained,
+}
+
+enum PPrivacyOptionsRequirement {
+  unknown,
+  notRequired,
+  required,
+}
+
+enum PDebugGeography {
+  disabled,
+  eea,
+  notEea,
+}
+
 enum PBlockReason {
   disabled,
   ruleRejected,
@@ -557,32 +576,41 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is PAdType) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is PBlockReason) {
+    }    else if (value is PConsentStatus) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is PShowEventKind) {
+    }    else if (value is PPrivacyOptionsRequirement) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is PRetryPolicy) {
+    }    else if (value is PDebugGeography) {
       buffer.putUint8(132);
-      writeValue(buffer, value.encode());
-    }    else if (value is PPlacementConfig) {
+      writeValue(buffer, value.index);
+    }    else if (value is PBlockReason) {
       buffer.putUint8(133);
-      writeValue(buffer, value.encode());
-    }    else if (value is PShowIntervalConfig) {
+      writeValue(buffer, value.index);
+    }    else if (value is PShowEventKind) {
       buffer.putUint8(134);
-      writeValue(buffer, value.encode());
-    }    else if (value is PAdFlowError) {
+      writeValue(buffer, value.index);
+    }    else if (value is PRetryPolicy) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is PRewardItem) {
+    }    else if (value is PPlacementConfig) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is PLoadResult) {
+    }    else if (value is PShowIntervalConfig) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PAdRevenueEvent) {
+    }    else if (value is PAdFlowError) {
       buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is PRewardItem) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is PLoadResult) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is PAdRevenueEvent) {
+      buffer.putUint8(141);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -597,23 +625,32 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : PAdType.values[value];
       case 130:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PBlockReason.values[value];
+        return value == null ? null : PConsentStatus.values[value];
       case 131:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PShowEventKind.values[value];
+        return value == null ? null : PPrivacyOptionsRequirement.values[value];
       case 132:
-        return PRetryPolicy.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PDebugGeography.values[value];
       case 133:
-        return PPlacementConfig.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PBlockReason.values[value];
       case 134:
-        return PShowIntervalConfig.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PShowEventKind.values[value];
       case 135:
-        return PAdFlowError.decode(readValue(buffer)!);
+        return PRetryPolicy.decode(readValue(buffer)!);
       case 136:
-        return PRewardItem.decode(readValue(buffer)!);
+        return PPlacementConfig.decode(readValue(buffer)!);
       case 137:
-        return PLoadResult.decode(readValue(buffer)!);
+        return PShowIntervalConfig.decode(readValue(buffer)!);
       case 138:
+        return PAdFlowError.decode(readValue(buffer)!);
+      case 139:
+        return PRewardItem.decode(readValue(buffer)!);
+      case 140:
+        return PLoadResult.decode(readValue(buffer)!);
+      case 141:
         return PAdRevenueEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -707,6 +744,106 @@ class AdFlowCoreHostApi {
         isNullValid: true,
     )
     ;
+  }
+
+  Future<PConsentStatus> getConsentStatus() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.getConsentStatus$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as PConsentStatus;
+  }
+
+  Future<PPrivacyOptionsRequirement> getPrivacyOptionsRequirement() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.getPrivacyOptionsRequirement$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as PPrivacyOptionsRequirement;
+  }
+
+  Future<bool> canRequestAds() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.canRequestAds$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Xin consent nếu cần - no-op nếu ngoài khu vực cần (EEA/UK). [debugGeography]/
+  /// [testDeviceHashedIds] chỉ dùng để test flow EEA (xem README), để null/rỗng cho production.
+  /// Không cần tham số Activity - Kotlin tự lấy PlacementRegistry.currentActivity.
+  Future<PAdFlowError?> requestConsentIfNeeded(PDebugGeography? debugGeography, List<String> testDeviceHashedIds) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.requestConsentIfNeeded$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[debugGeography, testDeviceHashedIds]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as PAdFlowError?;
+  }
+
+  /// Cho user xem lại/đổi consent đã có - chỉ nên gọi khi getPrivacyOptionsRequirement() ==
+  /// PPrivacyOptionsRequirement.required.
+  Future<PAdFlowError?> showPrivacyOptionsForm() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.showPrivacyOptionsForm$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as PAdFlowError?;
   }
 }
 

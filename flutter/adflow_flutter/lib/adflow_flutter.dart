@@ -18,6 +18,9 @@ export 'src/generated/adflow_api.g.dart'
         PAdRevenueEvent,
         PAdType,
         PBlockReason,
+        PConsentStatus,
+        PDebugGeography,
         PLoadResult,
+        PPrivacyOptionsRequirement,
         PRewardItem,
         PShowEventKind;

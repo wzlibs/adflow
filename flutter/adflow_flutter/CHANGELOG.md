@@ -1,3 +1,12 @@
+## 0.2.0
+
+* GDPR/consent support (Google UMP), exposed on `AdFlowCore`: `getConsentStatus()`,
+  `getPrivacyOptionsRequirement()`, `canRequestAds()`, `requestConsentIfNeeded()`,
+  `showPrivacyOptionsForm()`. `requestConsentIfNeeded()` accepts an optional `debugGeography`/
+  `testDeviceHashedIds` to test the EEA flow without rebuilding a native-only app.
+* No app-side change required for existing `load()` calls - they already respect consent
+  automatically (see README).
+
 ## 0.1.1
 
 * Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.2.0`, which adds GDPR/consent

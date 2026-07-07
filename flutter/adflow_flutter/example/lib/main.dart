@@ -14,9 +14,10 @@ Future<void> main() async {
   await AdFlowCore.initialize();
   placements = AdPlacements();
   await placements.appOpen.enableAutoShowOnForeground();
-  // Không chờ load() xong mới runApp() - load ads chạy song song ở background, giống
-  // AdFlowDemoApp.onCreate() bản Kotlin gốc.
-  unawaited(placements.loadAll());
+  // Không chờ resolve consent/load() xong mới runApp() - chạy song song ở background, giống
+  // MainActivity.kt bản Kotlin gốc. load() tự động tôn trọng consent (xem README), nên thứ tự
+  // "xin consent rồi mới load" ở đây chỉ để tránh lãng phí 1 request, không phải điều kiện bắt buộc.
+  unawaited(AdFlowCore.requestConsentIfNeeded().then((_) => placements.loadAll()));
   runApp(const MyApp());
 }
 

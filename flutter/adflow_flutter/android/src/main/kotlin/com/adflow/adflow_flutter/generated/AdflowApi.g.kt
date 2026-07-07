@@ -209,6 +209,43 @@ enum class PAdType(val raw: Int) {
   }
 }
 
+enum class PConsentStatus(val raw: Int) {
+  UNKNOWN(0),
+  NOT_REQUIRED(1),
+  REQUIRED(2),
+  OBTAINED(3);
+
+  companion object {
+    fun ofRaw(raw: Int): PConsentStatus? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+enum class PPrivacyOptionsRequirement(val raw: Int) {
+  UNKNOWN(0),
+  NOT_REQUIRED(1),
+  REQUIRED(2);
+
+  companion object {
+    fun ofRaw(raw: Int): PPrivacyOptionsRequirement? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+enum class PDebugGeography(val raw: Int) {
+  DISABLED(0),
+  EEA(1),
+  NOT_EEA(2);
+
+  companion object {
+    fun ofRaw(raw: Int): PDebugGeography? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 enum class PBlockReason(val raw: Int) {
   DISABLED(0),
   RULE_REJECTED(1),
@@ -585,45 +622,60 @@ private open class AdflowApiPigeonCodec : StandardMessageCodec() {
       }
       130.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PBlockReason.ofRaw(it.toInt())
+          PConsentStatus.ofRaw(it.toInt())
         }
       }
       131.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PShowEventKind.ofRaw(it.toInt())
+          PPrivacyOptionsRequirement.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PRetryPolicy.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PDebugGeography.ofRaw(it.toInt())
         }
       }
       133.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PPlacementConfig.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PBlockReason.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PShowIntervalConfig.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PShowEventKind.ofRaw(it.toInt())
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PAdFlowError.fromList(it)
+          PRetryPolicy.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PRewardItem.fromList(it)
+          PPlacementConfig.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PLoadResult.fromList(it)
+          PShowIntervalConfig.fromList(it)
         }
       }
       138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PAdFlowError.fromList(it)
+        }
+      }
+      139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PRewardItem.fromList(it)
+        }
+      }
+      140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PLoadResult.fromList(it)
+        }
+      }
+      141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PAdRevenueEvent.fromList(it)
         }
@@ -637,40 +689,52 @@ private open class AdflowApiPigeonCodec : StandardMessageCodec() {
         stream.write(129)
         writeValue(stream, value.raw.toLong())
       }
-      is PBlockReason -> {
+      is PConsentStatus -> {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is PShowEventKind -> {
+      is PPrivacyOptionsRequirement -> {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is PRetryPolicy -> {
+      is PDebugGeography -> {
         stream.write(132)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PPlacementConfig -> {
+      is PBlockReason -> {
         stream.write(133)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PShowIntervalConfig -> {
+      is PShowEventKind -> {
         stream.write(134)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is PAdFlowError -> {
+      is PRetryPolicy -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is PRewardItem -> {
+      is PPlacementConfig -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is PLoadResult -> {
+      is PShowIntervalConfig -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is PAdRevenueEvent -> {
+      is PAdFlowError -> {
         stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is PRewardItem -> {
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is PLoadResult -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is PAdRevenueEvent -> {
+        stream.write(141)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -689,6 +753,20 @@ interface AdFlowCoreHostApi {
    * [AdFlowFlutterApi.onRevenuePaid]. Gọi lại nhiều lần là no-op (idempotent).
    */
   fun addRevenueLogger()
+  fun getConsentStatus(): PConsentStatus
+  fun getPrivacyOptionsRequirement(): PPrivacyOptionsRequirement
+  fun canRequestAds(): Boolean
+  /**
+   * Xin consent nếu cần - no-op nếu ngoài khu vực cần (EEA/UK). [debugGeography]/
+   * [testDeviceHashedIds] chỉ dùng để test flow EEA (xem README), để null/rỗng cho production.
+   * Không cần tham số Activity - Kotlin tự lấy PlacementRegistry.currentActivity.
+   */
+  fun requestConsentIfNeeded(debugGeography: PDebugGeography?, testDeviceHashedIds: List<String>, callback: (Result<PAdFlowError?>) -> Unit)
+  /**
+   * Cho user xem lại/đổi consent đã có - chỉ nên gọi khi getPrivacyOptionsRequirement() ==
+   * PPrivacyOptionsRequirement.required.
+   */
+  fun showPrivacyOptionsForm(callback: (Result<PAdFlowError?>) -> Unit)
 
   companion object {
     /** The codec used by AdFlowCoreHostApi. */
@@ -761,6 +839,90 @@ interface AdFlowCoreHostApi {
               AdflowApiPigeonUtils.wrapError(exception)
             }
             reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.getConsentStatus$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getConsentStatus())
+            } catch (exception: Throwable) {
+              AdflowApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.getPrivacyOptionsRequirement$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getPrivacyOptionsRequirement())
+            } catch (exception: Throwable) {
+              AdflowApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.canRequestAds$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.canRequestAds())
+            } catch (exception: Throwable) {
+              AdflowApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.requestConsentIfNeeded$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val debugGeographyArg = args[0] as PDebugGeography?
+            val testDeviceHashedIdsArg = args[1] as List<String>
+            api.requestConsentIfNeeded(debugGeographyArg, testDeviceHashedIdsArg) { result: Result<PAdFlowError?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(AdflowApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(AdflowApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.adflow_flutter.AdFlowCoreHostApi.showPrivacyOptionsForm$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.showPrivacyOptionsForm{ result: Result<PAdFlowError?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(AdflowApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(AdflowApiPigeonUtils.wrapResult(data))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)

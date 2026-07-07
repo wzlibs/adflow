@@ -36,4 +36,26 @@ class AdFlowCore {
   static void addRevenueLogger(void Function(PAdRevenueEvent event) onRevenuePaid) {
     FlutterApiDispatcher.instance.addRevenueListener(onRevenuePaid);
   }
+
+  // GDPR/consent (xem README) - đây là 1 primitive độc lập, gọi ở bất kỳ đâu/lúc nào tuỳ ý, không
+  // có vị trí bắt buộc. Không cần tự viết điều kiện check consent trước khi load() - load() tự
+  // động tôn trọng consent, gọi trước khi consent resolve chỉ fail an toàn.
+  static Future<PConsentStatus> getConsentStatus() => _hostApi.getConsentStatus();
+
+  static Future<PPrivacyOptionsRequirement> getPrivacyOptionsRequirement() =>
+      _hostApi.getPrivacyOptionsRequirement();
+
+  static Future<bool> canRequestAds() => _hostApi.canRequestAds();
+
+  /// Xin consent nếu cần (no-op nếu ngoài khu vực cần, ví dụ ngoài EEA/UK). [debugGeography]/
+  /// [testDeviceHashedIds] chỉ dùng để test flow EEA khi thiết bị test không ở EEA thật - để
+  /// mặc định (null/rỗng) cho production.
+  static Future<PAdFlowError?> requestConsentIfNeeded({
+    PDebugGeography? debugGeography,
+    List<String> testDeviceHashedIds = const [],
+  }) => _hostApi.requestConsentIfNeeded(debugGeography, testDeviceHashedIds);
+
+  /// Cho user xem lại/đổi lựa chọn consent đã có - chỉ nên gọi khi
+  /// [getPrivacyOptionsRequirement] trả về [PPrivacyOptionsRequirement.required].
+  static Future<PAdFlowError?> showPrivacyOptionsForm() => _hostApi.showPrivacyOptionsForm();
 }
