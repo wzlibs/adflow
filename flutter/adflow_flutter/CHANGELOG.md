@@ -1,3 +1,9 @@
+## 0.1.1
+
+* Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.2.0`, which adds GDPR/consent
+  support (Google UMP) on the native Android side. Not yet exposed through the Dart API - this
+  release only picks up the new native dependency.
+
 ## 0.1.0
 
 Initial release. Android only - iOS not implemented yet.
