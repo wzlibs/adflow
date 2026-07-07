@@ -18,11 +18,10 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Local Maven repo tĩnh chứa :adflow-core/:adflow-admob đã publish (xem
-        // adflow-core/build.gradle.kts + adflow-admob/build.gradle.kts ở repo gốc). Dùng đường dẫn
-        // tương đối theo projectDir để vẫn đúng khi app Flutter khác include module này làm
-        // subproject (Flutter Gradle plugin loader set projectDir trỏ thẳng vào thư mục android/ này).
-        maven { url = uri("$projectDir/local-maven") }
+        // adflow-core/adflow-admob được publish qua JitPack (xem RELEASING.md ở root repo) -
+        // groupId khi build qua JitPack luôn là com.github.<owner>.<repo>, khác groupId nội bộ
+        // "com.adflow" cấu hình trong build.gradle.kts của 2 module đó.
+        maven("https://jitpack.io")
     }
 }
 
@@ -77,11 +76,10 @@ kotlin {
 }
 
 dependencies {
-    // Version phải khớp với `adflowVersion` trong gradle.properties ở repo gốc - đây là 2 Gradle
-    // build độc lập nên không tự share property được; nhớ bump tay + publish lại mỗi khi core/admob
-    // đổi API (xem README của plugin, phần "Rủi ro/giới hạn").
-    api("com.adflow:core:0.1.0")
-    api("com.adflow:admob:0.1.0")
+    // Tag JitPack (không phải adflowVersion trong gradle.properties ở repo gốc) - bump khi
+    // adflow-core/adflow-admob có tag mới (xem RELEASING.md ở root repo).
+    api("com.github.wzlibs.adflow:core:v0.1.0")
+    api("com.github.wzlibs.adflow:admob:v0.1.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")

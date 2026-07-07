@@ -35,9 +35,10 @@ dependencies {
     testImplementation(libs.robolectric)
 }
 
-// Xuất :adflow-core ra 1 local Maven repo tĩnh, checked into git, để android/build.gradle.kts của
-// Flutter plugin (flutter/adflow_flutter) phụ thuộc được qua Maven coordinate bình thường - plugin
-// Flutter khi được app khác tiêu thụ từ ngoài repo này không thể dùng project(":adflow-core").
+// MavenPublication này cung cấp task publishToMavenLocal mà JitPack chạy khi build theo git tag
+// (xem RELEASING.md) - groupId/version ở đây chỉ có ý nghĩa nội bộ cho publishToMavenLocal, JitPack
+// tự phát coordinate công khai (com.github.wzlibs.adflow:core:<tag>) dựa theo tag được request, bất
+// kể giá trị groupId/version khai báo ở đây.
 publishing {
     publications {
         register<MavenPublication>("release") {
@@ -47,12 +48,6 @@ publishing {
             afterEvaluate {
                 from(components["release"])
             }
-        }
-    }
-    repositories {
-        maven {
-            name = "LocalFlutterRepo"
-            url = uri("$rootDir/flutter/adflow_flutter/android/local-maven")
         }
     }
 }

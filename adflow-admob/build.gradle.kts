@@ -44,9 +44,9 @@ dependencies {
     testImplementation(libs.robolectric)
 }
 
-// Xuất :adflow-admob ra cùng local Maven repo với :adflow-core (xem adflow-core/build.gradle.kts) -
-// dependency api(project(":adflow-core")) ở trên sẽ tự map sang coordinate "com.adflow:core:<version>"
-// trong POM được publish, vì :adflow-core cũng đã đăng ký publication cùng groupId/version.
+// MavenPublication này cung cấp task publishToMavenLocal mà JitPack chạy khi build theo git tag
+// (xem RELEASING.md) - dependency api(project(":adflow-core")) tự map sang "com.adflow:core:<version>"
+// trong POM (JitPack sẽ tự viết lại thành com.github.wzlibs.adflow:core:<tag> khi phục vụ ra ngoài).
 publishing {
     publications {
         register<MavenPublication>("release") {
@@ -56,12 +56,6 @@ publishing {
             afterEvaluate {
                 from(components["release"])
             }
-        }
-    }
-    repositories {
-        maven {
-            name = "LocalFlutterRepo"
-            url = uri("$rootDir/flutter/adflow_flutter/android/local-maven")
         }
     }
 }
