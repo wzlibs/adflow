@@ -22,12 +22,12 @@ Trong `build.gradle.kts` của app:
 
 ```kotlin
 dependencies {
-    implementation("com.github.wzlibs.adflow:core:v0.1.0")
-    implementation("com.github.wzlibs.adflow:admob:v0.1.0")
+    implementation("com.github.wzlibs.adflow:core:v0.2.0")
+    implementation("com.github.wzlibs.adflow:admob:v0.2.0")
 }
 ```
 
-(`v0.1.0` là tag release - xem tag mới nhất tại repo GitHub `wzlibs/adflow`. JitPack build theo yêu cầu ở lần đầu tiên có người dùng 1 tag mới, có thể mất khoảng 1-2 phút cho lần đầu).
+(`v0.2.0` là tag release - xem tag mới nhất tại repo GitHub `wzlibs/adflow`. JitPack build theo yêu cầu ở lần đầu tiên có người dùng 1 tag mới, có thể mất khoảng 1-2 phút cho lần đầu).
 
 ### Cách 2 - include module trực tiếp
 
