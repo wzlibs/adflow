@@ -5,7 +5,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class AdFlowCoreTest {
 
     @After
@@ -74,5 +77,47 @@ class AdFlowCoreTest {
         )
 
         assertEquals(0, received.size)
+    }
+
+    @Test
+    fun `runOnFirstForeground does not run before the process reaches the foreground`() {
+        var runCount = 0
+        AdFlowCore.runOnFirstForeground { runCount++ }
+
+        assertEquals(0, runCount)
+    }
+
+    @Test
+    fun `runOnFirstForeground runs once the process reaches the foreground`() {
+        var runCount = 0
+        AdFlowCore.runOnFirstForeground { runCount++ }
+
+        AdFlowCore.onForegroundStart()
+
+        assertEquals(1, runCount)
+    }
+
+    @Test
+    fun `runOnFirstForeground does not run again on a later foreground transition`() {
+        var runCount = 0
+        AdFlowCore.runOnFirstForeground { runCount++ }
+
+        AdFlowCore.onForegroundStart()
+        AdFlowCore.onForegroundStart() // app quay lại background rồi foreground lần nữa
+
+        assertEquals(1, runCount)
+    }
+
+    @Test
+    fun `a second call before the first fires is a no-op`() {
+        var firstRunCount = 0
+        var secondRunCount = 0
+        AdFlowCore.runOnFirstForeground { firstRunCount++ }
+        AdFlowCore.runOnFirstForeground { secondRunCount++ }
+
+        AdFlowCore.onForegroundStart()
+
+        assertEquals(1, firstRunCount)
+        assertEquals(0, secondRunCount)
     }
 }
