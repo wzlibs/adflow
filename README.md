@@ -4,23 +4,50 @@ AdFlow là thư viện quản lý quảng cáo cho app Android, hỗ trợ Inter
 
 ## 1. Thêm vào project
 
-AdFlow hiện **chưa được publish** lên Maven/JitPack - cách dùng duy nhất là include trực tiếp 2 module `adflow-core` và `adflow-admob` vào build của app (copy 2 thư mục module vào project, hoặc gộp app vào cùng multi-module build này).
+### Cách 1 - qua JitPack (khuyến nghị)
 
-Trong `settings.gradle.kts` của app:
+Trong `settings.gradle.kts` của app (khối `dependencyResolutionManagement`):
 
 ```kotlin
-include(":adflow-core")
-include(":adflow-admob")
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven("https://jitpack.io")
+    }
+}
 ```
 
 Trong `build.gradle.kts` của app:
 
 ```kotlin
 dependencies {
+    implementation("com.github.wzlibs.adflow:core:v0.1.0")
+    implementation("com.github.wzlibs.adflow:admob:v0.1.0")
+}
+```
+
+(`v0.1.0` là tag release - xem tag mới nhất tại repo GitHub `wzlibs/adflow`. JitPack build theo yêu cầu ở lần đầu tiên có người dùng 1 tag mới, có thể mất khoảng 1-2 phút cho lần đầu).
+
+### Cách 2 - include module trực tiếp
+
+Copy 2 thư mục module `adflow-core`/`adflow-admob` vào project, hoặc gộp app vào cùng multi-module build này, rồi:
+
+```kotlin
+// settings.gradle.kts của app
+include(":adflow-core")
+include(":adflow-admob")
+```
+
+```kotlin
+// build.gradle.kts của app
+dependencies {
     implementation(project(":adflow-core"))
     implementation(project(":adflow-admob"))
 }
 ```
+
+---
 
 Nếu app dùng các Compose helper của lib (`BannerAdView`, `NativeAdView`, xem mục 6) thì app phải tự có Jetpack Compose (Compose BOM + `androidx.compose.ui`) trong classpath của mình - `adflow-admob` không tự kéo Compose runtime cho app.
 
