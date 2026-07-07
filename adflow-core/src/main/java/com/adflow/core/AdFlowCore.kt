@@ -51,19 +51,20 @@ object AdFlowCore {
     }
 
     /**
-     * Mặc định `true` (không chặn gì) để không phá vỡ app chưa tích hợp [ConsentManager] - hành vi
-     * y hệt trước khi có consent gating. Chỉ khi app chủ động tạo 1 [ConsentManager] và gọi
-     * [ConsentManager.requestConsentIfNeeded]/[ConsentManager.showPrivacyOptionsForm], field này
-     * mới được cập nhật theo consent thật qua [updateConsent]. Được [SimpleCachedAdLoaderBase.load]
-     * tự động check trước khi load - app không cần tự viết điều kiện check consent riêng.
+     * GDPR/consent (xem [ConsentManager]) - mặc định `true` (không chặn gì) để không phá vỡ app
+     * chưa tích hợp [ConsentManager] - hành vi y hệt trước khi có consent gating. Chỉ khi app chủ
+     * động tạo 1 [ConsentManager] và gọi [ConsentManager.requestConsentIfNeeded]/
+     * [ConsentManager.showPrivacyOptionsForm], field này mới được cập nhật theo consent thật qua
+     * [updateConsent]. Được [SimpleCachedAdLoaderBase.load] tự động check trước khi load - app
+     * không cần tự viết điều kiện check consent riêng.
      */
-    var canRequestAds: Boolean = true
+    var consentAllowsAdRequests: Boolean = true
         private set
 
     /** Gọi bởi implementation [ConsentManager] (ví dụ `AdMobConsentManager`) mỗi khi consent
      * resolve/đổi - không phải API app tự gọi trực tiếp. */
-    fun updateConsent(canRequestAds: Boolean) {
-        this.canRequestAds = canRequestAds
+    fun updateConsent(allowsAdRequests: Boolean) {
+        consentAllowsAdRequests = allowsAdRequests
     }
 
     fun configure(
@@ -130,6 +131,6 @@ object AdFlowCore {
         ProcessLifecycleOwner.get().lifecycle.removeObserver(foregroundObserver)
         foregroundAction = null
         foregroundActionRan = false
-        canRequestAds = true
+        consentAllowsAdRequests = true
     }
 }

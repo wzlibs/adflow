@@ -36,7 +36,7 @@ abstract class SimpleCachedAdLoaderBase<TAd : Any>(
             onResult(AdLoadResult.Failure(AdFlowError(-1, "placement disabled")))
             return
         }
-        if (!AdFlowCore.canRequestAds) {
+        if (!AdFlowCore.consentAllowsAdRequests) {
             AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOAD_FAILED, "consent not obtained")
             onResult(AdLoadResult.Failure(AdFlowError(-3, "consent not obtained")))
             return

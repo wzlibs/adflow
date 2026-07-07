@@ -6,7 +6,7 @@ import android.app.Activity
  * Cầu nối tới 1 CMP (Consent Management Platform, ví dụ Google UMP) cho GDPR/quyền riêng tư.
  * Đây là 1 primitive độc lập - app tự quyết định gọi [requestConsentIfNeeded] ở Activity nào/lúc
  * nào tuỳ ý, không có vị trí bắt buộc. Sau khi resolve, implementation tự cập nhật
- * [AdFlowCore.canRequestAds] - mọi placement tự động tôn trọng consent ngay trong `load()`
+ * [AdFlowCore.consentAllowsAdRequests] - mọi placement tự động tôn trọng consent ngay trong `load()`
  * ([SimpleCachedAdLoaderBase.load]), app không cần tự viết điều kiện check riêng.
  */
 interface ConsentManager {

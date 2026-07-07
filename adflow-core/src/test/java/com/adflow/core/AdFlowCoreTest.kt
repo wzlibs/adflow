@@ -122,23 +122,23 @@ class AdFlowCoreTest {
     }
 
     @Test
-    fun `canRequestAds defaults to true so apps without a ConsentManager are unaffected`() {
-        assertTrue(AdFlowCore.canRequestAds)
+    fun `consentAllowsAdRequests defaults to true so apps without a ConsentManager are unaffected`() {
+        assertTrue(AdFlowCore.consentAllowsAdRequests)
     }
 
     @Test
-    fun `updateConsent changes canRequestAds`() {
+    fun `updateConsent changes consentAllowsAdRequests`() {
         AdFlowCore.updateConsent(false)
-        assertFalse(AdFlowCore.canRequestAds)
+        assertFalse(AdFlowCore.consentAllowsAdRequests)
 
         AdFlowCore.updateConsent(true)
-        assertTrue(AdFlowCore.canRequestAds)
+        assertTrue(AdFlowCore.consentAllowsAdRequests)
     }
 
     @Test
-    fun `reset() restores canRequestAds back to true`() {
+    fun `reset() restores consentAllowsAdRequests back to true`() {
         AdFlowCore.updateConsent(false)
         AdFlowCore.reset()
-        assertTrue(AdFlowCore.canRequestAds)
+        assertTrue(AdFlowCore.consentAllowsAdRequests)
     }
 }

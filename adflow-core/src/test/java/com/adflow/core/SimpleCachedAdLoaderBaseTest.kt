@@ -108,7 +108,7 @@ class SimpleCachedAdLoaderBaseTest {
     }
 
     @Test
-    fun `load reports consent-blocked failure without touching the network when canRequestAds is false`() {
+    fun `load reports consent-blocked failure without touching the network when consentAllowsAdRequests is false`() {
         var requestCount = 0
         val manager = object : SimpleCachedAdLoaderBase<String>(
             PlacementConfig(placementId = "p1", adUnitIds = listOf("A")),
