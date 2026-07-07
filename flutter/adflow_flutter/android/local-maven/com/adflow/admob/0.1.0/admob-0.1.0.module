@@ -1,0 +1,135 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.adflow",
+    "module": "admob",
+    "version": "0.1.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.4.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "com.adflow",
+          "module": "core",
+          "version": {
+            "requires": "0.1.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "admob-0.1.0.aar",
+          "url": "admob-0.1.0.aar",
+          "size": 37515,
+          "sha512": "2716d08227bbb741c13ed43585cf30496896b087c4f1d18f43f2cfa9e17d1a4744e8bfaee41630aa418d65693ab507c8af2ada43d65a717224adcf8ec07ef66f",
+          "sha256": "1bc842cad9b37b2ca7c10949a04b4322a4742b862be04ec98a88abb62b03cd58",
+          "sha1": "6fac9fc45f3bfabef58062f8cfc60f22ac9f4d5f",
+          "md5": "50428f22b1ee6622fb0ea393bd275421"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "com.google.android.gms",
+          "module": "play-services-ads",
+          "version": {
+            "requires": "25.4.0"
+          }
+        },
+        {
+          "group": "androidx.compose",
+          "module": "compose-bom",
+          "version": {
+            "requires": "2026.02.01"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          }
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui"
+        },
+        {
+          "group": "androidx.compose.foundation",
+          "module": "foundation"
+        },
+        {
+          "group": "com.adflow",
+          "module": "core",
+          "version": {
+            "requires": "0.1.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "admob-0.1.0.aar",
+          "url": "admob-0.1.0.aar",
+          "size": 37515,
+          "sha512": "2716d08227bbb741c13ed43585cf30496896b087c4f1d18f43f2cfa9e17d1a4744e8bfaee41630aa418d65693ab507c8af2ada43d65a717224adcf8ec07ef66f",
+          "sha256": "1bc842cad9b37b2ca7c10949a04b4322a4742b862be04ec98a88abb62b03cd58",
+          "sha1": "6fac9fc45f3bfabef58062f8cfc60f22ac9f4d5f",
+          "md5": "50428f22b1ee6622fb0ea393bd275421"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseSourcePublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "admob-0.1.0-sources.jar",
+          "url": "admob-0.1.0-sources.jar",
+          "size": 11794,
+          "sha512": "53cb64ed3ade01385a0fee59e1070c9f1e4cbdc530aeef0b77d0ca3e4aca05225106debcfa94ed5fdf0466a035eb6e2a9609bd0c98c0978839b8c0b1dad3c738",
+          "sha256": "ad9ed9c52cc7263944b74df915e863b7060598dc19111ef0ce1bd22930785ca2",
+          "sha1": "c0c1f897a61edf20eb55d79d187d1676c9f5d1d5",
+          "md5": "655458ed16e3388abd82010ffab5b890"
+        }
+      ]
+    }
+  ]
+}
