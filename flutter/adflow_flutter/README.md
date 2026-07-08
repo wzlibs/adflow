@@ -252,8 +252,8 @@ Toàn bộ App ID/Ad Unit ID trong ví dụ ở tài liệu này là **ID test c
 - Banner cố định `AdSize.BANNER` (320x50) - chưa hỗ trợ adaptive banner.
 - Native renderer cố định `DefaultMediumNativeAdRenderer` - chưa expose custom renderer qua Dart.
 - Tag JitPack trong `android/build.gradle.kts` (`com.github.wzlibs.adflow:core:v0.2.0`/`admob:v0.2.0`) phải bump thủ công mỗi khi `adflow-core`/`adflow-admob` ra tag mới - quên bump sẽ khiến plugin build với version cũ một cách âm thầm.
-- `show()` cần 1 `Activity` đang attach với Flutter engine - gọi quá sớm (chưa có Activity nào) sẽ bị bỏ qua âm thầm, không crash.
-- `RetryPolicy` mặc định có thể khiến `load()` treo tới ~135s ở trường hợp xấu nhất (backoff 5+10+20+40+60s) - cần tính vào UX loading của app.
+- `show()` cần 1 `Activity` đang attach với Flutter engine - gọi quá sớm (chưa có Activity nào) sẽ báo `onShowBlocked(BlockReason.notReady)` thay vì hiển thị, không crash.
+- `RetryPolicy` mặc định retry **không giới hạn** khi no-fill (backoff tăng dần, trần 60s/lần) - `load()` sẽ không tự bỏ cuộc, cứ thử mãi cho tới khi có fill hoặc app tự huỷ theo cách khác (vd tắt placement qua `setEnabled(false)`). Cần tính vào UX loading nếu app hiển thị spinner chờ `load()`.
 - iOS: chưa hỗ trợ.
 
 ## Ví dụ đầy đủ

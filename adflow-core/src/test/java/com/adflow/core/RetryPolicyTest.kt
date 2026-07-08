@@ -20,4 +20,9 @@ class RetryPolicyTest {
         assertEquals(60_000L, policy.delayForAttempt(6))
         assertEquals(60_000L, policy.delayForAttempt(10))
     }
+
+    @Test
+    fun `default policy retries without limit`() {
+        assertEquals(Int.MAX_VALUE, RetryPolicy.DEFAULT.maxRetries)
+    }
 }
