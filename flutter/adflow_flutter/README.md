@@ -71,7 +71,7 @@ Future<void> main() async {
 
 `AdFlowCore.initialize()` nên gọi ngay trong `main()`, vì đó là thời điểm sớm nhất chắc chắn app sắp hiển thị UI. Nếu app của bạn nhúng Flutter kiểu add-to-app (Dart entrypoint không đảm bảo luôn dẫn tới foreground), hãy tự gate lời gọi này tới khi chắc chắn app đang hiển thị.
 
-`initialize()` nhận thêm 2 tham số tùy chọn: `showIntervalConfig` (xem mục 7) và `useLogcatLogger` (mặc định `true`, log ra Logcat tag "AdFlow").
+`initialize()` nhận thêm 2 tham số tùy chọn: `showIntervalConfig` (xem mục 7) và `useLogcatLogger` (mặc định `true`, log ra Logcat tag "AdFlowSDK").
 
 ## 4. Khai báo Placements
 

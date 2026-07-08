@@ -288,7 +288,7 @@ AdFlowCore.addRevenueLogger(RevenueLogger { event: AdRevenueEvent ->
 
 ## 9. Logging (tùy chọn)
 
-Mặc định AdFlow log qua Logcat (`LogcatAdFlowLogger`). Truyền 1 `AdFlowLogger` tùy biến vào `configure()` nếu muốn gửi log đi nơi khác:
+Mặc định AdFlowSDK log qua Logcat (`LogcatAdFlowLogger`). Truyền 1 `AdFlowLogger` tùy biến vào `configure()` nếu muốn gửi log đi nơi khác:
 
 ```kotlin
 AdFlowCore.configure(logger = object : AdFlowLogger {
