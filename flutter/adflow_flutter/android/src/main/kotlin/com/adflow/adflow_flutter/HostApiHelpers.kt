@@ -21,7 +21,14 @@ internal inline fun showGated(
     hasManager: Boolean,
     show: (Activity) -> Unit,
 ) {
-    if (!hasManager) return
+    // Dart show() chỉ hoàn tất Future qua onShowEvent (xem show_event_support.dart) - mọi nhánh
+    // chặn ở đây đều phải gửi 1 event, nếu không await ad.show() sẽ treo vĩnh viễn. hasManager=false
+    // thường là lỗi gọi sai placementId; activity=null thì hoàn toàn có thể xảy ra bình thường
+    // (xoay màn hình, hoặc app bị background giữa lúc load() xong và show() được gọi).
+    if (!hasManager) {
+        flutterApi.onShowEvent(placementId, PShowEventKind.SHOW_BLOCKED, null, BlockReason.NOT_READY.toPigeon(), null) {}
+        return
+    }
     if (!registry.isEnabled(placementId)) {
         flutterApi.onShowEvent(placementId, PShowEventKind.SHOW_BLOCKED, null, BlockReason.DISABLED.toPigeon(), null) {}
         return
@@ -29,6 +36,7 @@ internal inline fun showGated(
     val activity = registry.currentActivity
     if (activity == null) {
         Log.w(TAG, "show($placementId) được gọi nhưng chưa có Activity nào attach - bỏ qua")
+        flutterApi.onShowEvent(placementId, PShowEventKind.SHOW_BLOCKED, null, BlockReason.NOT_READY.toPigeon(), null) {}
         return
     }
     show(activity)

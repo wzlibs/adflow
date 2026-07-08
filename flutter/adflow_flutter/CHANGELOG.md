@@ -1,3 +1,12 @@
+## 0.3.1
+
+* Fix: `show()` on `AdFlowInterstitialAd`/`AdFlowAppOpenAd`/`AdFlowRewardedAd` could hang forever
+  (the returned `Future<void>` never completing) when called with no `Activity` currently attached
+  (e.g. a screen rotation or the app briefly backgrounded between `load()` finishing and `show()`
+  being called), or when the placement had no underlying native manager registered. Both cases now
+  report `onShowBlocked(BlockReason.notReady)` instead of silently doing nothing, so the awaited
+  Future always resolves.
+
 ## 0.3.0
 
 * `AdFlowNativeAd.reload()`: force-fetch a new native ad even while the currently cached one is

@@ -86,7 +86,7 @@ class InterstitialAdHostApiImplTest {
     }
 
     @Test
-    fun `show() does nothing when no activity is attached`() {
+    fun `show() reports SHOW_BLOCKED (not silence) when no activity is attached`() {
         val registry = newRegistry()
         val manager = FakeInterstitialAdManager()
         registry.interstitials["p1"] = manager
@@ -100,7 +100,35 @@ class InterstitialAdHostApiImplTest {
         }
 
         assertNull(manager.shownWith)
-        verify(flutterApi, never()).onShowEvent(any(), any(), any(), any(), any(), any())
+        // Dart show() chỉ hoàn tất Future qua onShowEvent (xem show_event_support.dart) - im lặng
+        // hoàn toàn ở đây sẽ khiến await ad.show() treo vĩnh viễn nếu Activity detach đúng lúc
+        // (xoay màn hình, app bị background giữa lúc load() xong và show() được gọi).
+        verify(flutterApi).onShowEvent(
+            eq("p1"),
+            eq(PShowEventKind.SHOW_BLOCKED),
+            eq(null),
+            eq(PBlockReason.NOT_READY),
+            eq(null),
+            any(),
+        )
+    }
+
+    @Test
+    fun `show() reports SHOW_BLOCKED (not silence) when no manager exists for the placement`() {
+        val registry = newRegistry()
+        val flutterApi = mock<AdFlowFlutterApi>()
+        val impl = InterstitialAdHostApiImpl(registry, flutterApi)
+
+        impl.show("unregistered")
+
+        verify(flutterApi).onShowEvent(
+            eq("unregistered"),
+            eq(PShowEventKind.SHOW_BLOCKED),
+            eq(null),
+            eq(PBlockReason.NOT_READY),
+            eq(null),
+            any(),
+        )
     }
 
     @Test
