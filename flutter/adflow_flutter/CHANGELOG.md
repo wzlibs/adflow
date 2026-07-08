@@ -1,3 +1,9 @@
+## 0.2.1
+
+* Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.3.0`, which renames the
+  default Logcat tag (was `"AdFlow"`, clashed with the app's own package name in logcat output;
+  now `"AdFlowSDK"`). No Dart API change.
+
 ## 0.2.0
 
 * GDPR/consent support (Google UMP), exposed on `AdFlowCore`: `getConsentStatus()`,
