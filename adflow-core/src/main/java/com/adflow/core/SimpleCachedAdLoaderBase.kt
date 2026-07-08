@@ -30,37 +30,67 @@ abstract class SimpleCachedAdLoaderBase<TAd : Any>(
      * no-op; [CachedAdLoaderBase] override để ghi lại timestamp load phục vụ expiry tracking. */
     protected open fun onLoaded(ad: TAd) {}
 
-    open fun load(onResult: (AdLoadResult) -> Unit) {
+    /** Được gọi khi 1 ad bị thay thế/loại bỏ khỏi cache (qua [forceLoad] thành công, hoặc qua
+     * [ExpiringCachedAdLoaderBase.dropIfExpired]) - chỗ để subclass giải phóng tài nguyên gắn với
+     * ad đó (vd `NativeAd.destroy()`). No-op mặc định. */
+    protected open fun onDrop(ad: TAd) {}
+
+    private fun passesGates(onResult: (AdLoadResult) -> Unit): Boolean {
         if (!config.enabled) {
             AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOAD_FAILED, "disabled")
             onResult(AdLoadResult.Failure(AdFlowError(-1, "placement disabled")))
-            return
+            return false
         }
         if (!AdFlowCore.consentAllowsAdRequests) {
             AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOAD_FAILED, "consent not obtained")
             onResult(AdLoadResult.Failure(AdFlowError(-3, "consent not obtained")))
-            return
+            return false
         }
         if (config.loadRule?.isAllowed(config.placementId) == false) {
             AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.LOAD_FAILED, "loadRule rejected")
             onResult(AdLoadResult.Failure(AdFlowError(-2, "load rule rejected")))
-            return
+            return false
         }
+        return true
+    }
+
+    private fun startFetch(
+        onResult: (AdLoadResult) -> Unit,
+        onSwapped: (previous: TAd?, new: TAd) -> Unit,
+    ) {
+        loader.start { result, ad ->
+            // Guard bằng identity, không chỉ success+non-null: RetryingAdLoader coalesce mọi lệnh
+            // load()/forceLoad() gọi trong lúc 1 cycle đang chạy vào cùng cycle đó, nên callback
+            // này có thể chạy nhiều hơn 1 lần cho 1 lần load thật, mỗi lần cho 1 caller được
+            // coalesce, tất cả cùng nhận (result, ad) giống nhau. Chỉ lần đầu tiên mới thực sự
+            // swap cache và gọi onSwapped(); các lần sau chỉ cần gọi onResult() cho đúng caller.
+            if (result is AdLoadResult.Success && ad != null && cachedAd !== ad) {
+                val previous = cachedAd
+                cachedAd = ad
+                onSwapped(previous, ad)
+            }
+            onResult(result)
+        }
+    }
+
+    open fun load(onResult: (AdLoadResult) -> Unit) {
+        if (!passesGates(onResult)) return
         if (isReady()) {
             onResult(AdLoadResult.Success)
             return
         }
-        loader.start { result, ad ->
-            // Guard bằng identity, không chỉ success+non-null: RetryingAdLoader coalesce mọi lệnh
-            // load() gọi trong lúc 1 cycle đang chạy vào cùng cycle đó, nên callback này có thể
-            // chạy nhiều hơn 1 lần cho 1 lần load thật, mỗi lần cho 1 caller được coalesce, tất cả
-            // cùng nhận (result, ad) giống nhau. Chỉ lần đầu tiên mới thực sự cache và gọi
-            // onLoaded(); các lần sau chỉ cần gọi onResult() cho đúng caller của nó.
-            if (result is AdLoadResult.Success && ad != null && cachedAd !== ad) {
-                cachedAd = ad
-                onLoaded(ad)
-            }
-            onResult(result)
+        startFetch(onResult) { _, ad -> onLoaded(ad) }
+    }
+
+    /** Bỏ qua short-circuit [isReady] để ép fetch 1 ad mới thật sự dù ad đang cache vẫn còn hạn.
+     * [cachedAd] chỉ bị swap - và [onDrop] chỉ được gọi trên ad *cũ* - khi ad mới load thành công;
+     * nếu fetch thất bại, [cachedAd] giữ nguyên không đổi (ad cũ vẫn dùng được cho bất kỳ View nào
+     * đang gắn vào nó). */
+    protected fun forceLoad(onResult: (AdLoadResult) -> Unit) {
+        if (!passesGates(onResult)) return
+        startFetch(onResult) { previous, ad ->
+            onLoaded(ad)
+            if (previous != null) onDrop(previous)
         }
     }
 }

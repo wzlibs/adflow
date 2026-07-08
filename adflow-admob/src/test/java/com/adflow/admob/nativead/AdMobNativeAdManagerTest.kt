@@ -10,6 +10,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
@@ -60,5 +63,29 @@ class AdMobNativeAdManagerTest {
         assertEquals(4, manager.attemptCount)
         assertTrue(result is AdLoadResult.Failure)
         assertFalse(manager.isReady())
+    }
+
+    private class MockNativeAdManager(
+        context: Context,
+        config: PlacementConfig,
+        private val ads: MutableList<NativeAd>,
+    ) : AdMobNativeAdManager(context, config) {
+        override fun requestAd(adUnitId: String, onResult: (Result<NativeAd>) -> Unit) {
+            onResult(Result.success(ads.removeAt(0)))
+        }
+    }
+
+    @Test
+    fun `reload() destroys the previous NativeAd once the replacement loads successfully`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val ad1 = mock<NativeAd>()
+        val ad2 = mock<NativeAd>()
+        val manager = MockNativeAdManager(context, config, mutableListOf(ad1, ad2))
+
+        manager.load {}
+        manager.reload {}
+
+        verify(ad1).destroy()
+        verify(ad2, never()).destroy()
     }
 }

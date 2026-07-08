@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
 }
 
 // MavenPublication này cung cấp task publishToMavenLocal mà JitPack chạy khi build theo git tag

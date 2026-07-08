@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.adflow.admob.banner.compose.BannerAdView
 import com.adflow.admob.nativead.compose.NativeAdView
+import com.adflow.core.AdLoadResult
 import com.adflow.core.PrivacyOptionsRequirement
 import com.adflow.core.RewardItem
 import com.adflow.core.RewardedAdCallback
@@ -49,6 +51,11 @@ fun HomeScreen(placements: DemoAdPlacements) {
             nativeReady = placements.native.isReady()
         }
     }
+
+    // Bump nativeGeneration bên trong callback thành công của reload() (không phải ngay khi bấm
+    // nút) để việc tạo lại NativeAdView chỉ diễn ra sau khi ad mới đã swap xong - key() đổi giá
+    // trị sẽ khiến AndroidView bên trong tự huỷ-tạo lại, đọc đúng cachedAd mới nhất.
+    var nativeGeneration by remember { mutableStateOf(0) }
 
     var bannerReady by remember { mutableStateOf(placements.banner.isReady()) }
     LaunchedEffect(placements.banner) {
@@ -102,7 +109,16 @@ fun HomeScreen(placements: DemoAdPlacements) {
         // Đọc nativeReady/bannerReady ở đây (dù các composable đã tự check lại isReady())
         // chính là thứ gắn recomposition với các thay đổi trạng thái ad-ready.
         if (nativeReady) {
-            NativeAdView(manager = placements.native)
+            Button(onClick = {
+                placements.native.reload { result ->
+                    if (result is AdLoadResult.Success) nativeGeneration++
+                }
+            }) {
+                Text("Reload Native Ad")
+            }
+            key(nativeGeneration) {
+                NativeAdView(manager = placements.native)
+            }
         }
         if (bannerReady) {
             BannerAdView(manager = placements.banner)

@@ -34,8 +34,10 @@ abstract class ExpiringCachedAdLoaderBase<TAd : Any>(
     /** Drop cached ad khi đã quá [PlacementConfig.expiryMs], thay vì giữ một reference cũ (stale)
      * cho đến khi lần load thành công tiếp theo ghi đè lên nó. */
     protected fun dropIfExpired() {
-        if (cachedAd != null && nowProvider() - loadedAtMs >= config.expiryMs) {
+        val ad = cachedAd
+        if (ad != null && nowProvider() - loadedAtMs >= config.expiryMs) {
             cachedAd = null
+            onDrop(ad)
         }
     }
 }

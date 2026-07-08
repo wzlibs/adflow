@@ -3,6 +3,7 @@ package com.adflow.admob.nativead
 import android.content.Context
 import android.view.View
 import com.adflow.admob.dispatchRevenue
+import com.adflow.core.AdLoadResult
 import com.adflow.core.AdType
 import com.adflow.core.ExpiringCachedAdLoaderBase
 import com.adflow.core.NativeAdAssets
@@ -23,6 +24,12 @@ open class AdMobNativeAdManager(
 ) : ExpiringCachedAdLoaderBase<NativeAd>(config, AdType.NATIVE), NativeAdManager {
 
     private val placementId = config.placementId
+
+    override fun onDrop(ad: NativeAd) {
+        ad.destroy()
+    }
+
+    override fun reload(onResult: (AdLoadResult) -> Unit) = forceLoad(onResult)
 
     override fun requestAd(adUnitId: String, onResult: (Result<NativeAd>) -> Unit) {
         val adLoader = AdLoader.Builder(context, adUnitId)

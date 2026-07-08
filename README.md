@@ -260,6 +260,30 @@ if (placements.native.isReady()) {
 
 `BannerAdView`/`NativeAdView` tự kiểm tra `isReady()` bên trong, nhưng Compose sẽ không tự recompose khi ad load xong ở background - nên bọc thêm 1 state được cập nhật qua polling `isReady()` (ví dụ vòng lặp `delay(500)` trong `LaunchedEffect`) nếu muốn ad tự xuất hiện ngay khi sẵn sàng thay vì chỉ ở lần recompose kế tiếp.
 
+**Đổi sang native ad mới (`reload()`):** khác với Interstitial/Rewarded (tự "tiêu thụ" khi `show()`
+nên tự nhiên đã reload), 1 native ad được cache và tái sử dụng vô thời hạn cho tới khi hết hạn
+(`PlacementConfig.expiryMs`, mặc định 4h) - `load()` sẽ no-op nếu ad đang cache vẫn còn hạn. Nếu
+muốn ép đổi sang ad mới dù ad cũ vẫn còn hạn (ví dụ: user rời màn hình đang hiển thị native ad rồi
+quay lại, và muốn thấy ad khác), gọi `reload()`:
+
+```kotlin
+placements.native.reload { result ->
+    if (result is AdLoadResult.Success) {
+        // ad mới đã load xong và thay cho ad cũ trong cache - ép tạo lại View để đọc ad mới
+    }
+}
+```
+
+`reload()` **không** tự rebind `View`/`NativeAdView` đang hiển thị - `createView()` chỉ đọc
+`cachedAd` tại đúng lúc được gọi. App phải tự ép tạo lại View sau khi callback báo thành công (ví
+dụ đổi giá trị 1 Compose `key()` bọc quanh `NativeAdView`, xem `app/.../HomeScreen.kt`). Nếu
+`reload()` thất bại, ad cũ vẫn giữ nguyên trong cache - không bị mất/hết hạn oan.
+
+Điểm gọi khuyến nghị là lifecycle callback ứng với lúc user "quay lại" màn hình đang hiển thị native
+ad (`onResume` của Activity/Fragment, hoặc tương đương) - đây là quyết định của app, thư viện không
+tự động phát hiện việc này (mỗi app có kiến trúc navigation khác nhau: Activity, Fragment, Jetpack
+Navigation, Compose Navigation...).
+
 ## 7. Tùy chỉnh tần suất hiển thị
 
 Mặc định AdFlow áp 1 khoảng nghỉ tối thiểu giữa các lần hiển thị Interstitial/App Open để tránh làm phiền user. Tùy chỉnh qua `ShowIntervalConfig` khi gọi `configure()`:
