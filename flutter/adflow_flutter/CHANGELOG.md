@@ -1,3 +1,10 @@
+## 0.3.2
+
+* Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.5.0`, which makes the default
+  retry policy retry indefinitely on no-fill instead of giving up after 5 attempts (backoff still
+  caps at 60s/attempt). A placement no longer gets permanently stuck failed for the rest of the
+  session just because the ad network no-filled a few times in a row. No Dart API change.
+
 ## 0.3.1
 
 * Fix: `show()` on `AdFlowInterstitialAd`/`AdFlowAppOpenAd`/`AdFlowRewardedAd` could hang forever
