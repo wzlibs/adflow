@@ -25,6 +25,15 @@ class NativeAdHostApiImpl(private val registry: PlacementRegistry) : NativeAdHos
         manager.load { result -> callback(Result.success(result.toPigeon())) }
     }
 
+    override fun reload(placementId: String, callback: (Result<PLoadResult>) -> Unit) {
+        val manager = registry.natives[placementId]
+        if (manager == null) {
+            callback(Result.success(PLoadResult(success = false, error = null)))
+            return
+        }
+        manager.reload { result -> callback(Result.success(result.toPigeon())) }
+    }
+
     override fun setEnabled(placementId: String, enabled: Boolean) {
         registry.setEnabled(placementId, enabled)
     }

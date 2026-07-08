@@ -200,6 +200,26 @@ if (nativeReady) AdFlowNativeAdView(ad: placements.native),
 
 Với cả banner lẫn native: **chỉ build widget sau khi `await ad.load()` đã thành công** - `load()` trả về 1 `Future` thật, tự nó đã đủ để biết chính xác thời điểm ad sẵn sàng, không cần polling `isReady()` thêm.
 
+**Đổi sang native ad mới (`reload()`):** 1 native ad được cache và tái sử dụng vô thời hạn tới khi
+hết hạn (mặc định 4h) - `load()` sẽ no-op nếu ad đang cache vẫn còn hạn. Nếu muốn ép đổi sang ad
+mới dù ad cũ vẫn còn hạn (ví dụ: user rời màn hình đang hiển thị native ad rồi quay lại), gọi
+`await ad.reload()`, rồi tự ép Flutter tạo lại `AdFlowNativeAdView` (đổi 1 `Key`, vì nó không tự
+rebind sang ad mới):
+
+```dart
+final result = await placements.native.reload();
+if (result.success) {
+  setState(() => _nativeGeneration++); // dùng làm Key bên dưới
+}
+...
+AdFlowNativeAdView(key: ValueKey(_nativeGeneration), ad: placements.native),
+```
+
+Điểm gọi khuyến nghị là `RouteAware.didPopNext()` (đăng ký 1 `RouteObserver` qua
+`navigatorObservers` của `MaterialApp`) - tức lúc màn hình đang hiển thị native ad quay lại visible
+sau khi route phía trên bị pop. Đây là quyết định của app, `reload()` không tự động phát hiện việc
+này. Nếu `reload()` thất bại, ad cũ vẫn giữ nguyên trong cache, không bị mất.
+
 ## 7. Tùy chỉnh tần suất hiển thị
 
 ```dart

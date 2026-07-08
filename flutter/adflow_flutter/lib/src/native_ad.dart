@@ -21,6 +21,12 @@ class AdFlowNativeAd {
 
   Future<PLoadResult> load() => _hostApi.load(placementId);
 
+  /// Ép fetch 1 ad mới thật sự dù ad đang cache vẫn còn hạn - dùng khi muốn đổi sang ad mới (vd
+  /// user quay lại 1 màn hình đang hiển thị native ad, qua [RouteAware.didPopNext]). Không tự
+  /// rebind [AdFlowNativeAdView] đang hiển thị - sau khi [reload] trả về thành công, tự ép
+  /// Flutter tạo lại widget đó (vd đổi `Key`) để nó đọc ad mới.
+  Future<PLoadResult> reload() => _hostApi.reload(placementId);
+
   Future<void> setEnabled(bool enabled) => _hostApi.setEnabled(placementId, enabled);
 }
 

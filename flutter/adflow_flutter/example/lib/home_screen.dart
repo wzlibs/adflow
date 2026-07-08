@@ -21,6 +21,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _bannerReady = false;
   bool _nativeReady = false;
   bool _privacyOptionsRequired = false;
+  // Bump chỉ khi reload() thành công, dùng làm Key của AdFlowNativeAdView bên dưới để ép Flutter
+  // huỷ-tạo lại platform view đó, đọc đúng native ad mới nhất vừa swap xong.
+  int _nativeGeneration = 0;
 
   @override
   void initState() {
@@ -108,7 +111,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () => AdFlowCore.showPrivacyOptionsForm(),
                   child: const Text('Privacy options'),
                 ),
-              if (_nativeReady) AdFlowNativeAdView(ad: widget.placements.native),
+              if (_nativeReady) ...[
+                ElevatedButton(
+                  onPressed: () async {
+                    final result = await widget.placements.native.reload();
+                    if (!mounted || !result.success) return;
+                    setState(() => _nativeGeneration++);
+                  },
+                  child: const Text('Reload Native Ad'),
+                ),
+                AdFlowNativeAdView(
+                  key: ValueKey(_nativeGeneration),
+                  ad: widget.placements.native,
+                ),
+              ],
             ],
           ),
         ),

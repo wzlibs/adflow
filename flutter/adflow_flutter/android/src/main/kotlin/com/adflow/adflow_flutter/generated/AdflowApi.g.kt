@@ -1412,6 +1412,7 @@ interface NativeAdHostApi {
   fun create(config: PPlacementConfig)
   fun isReady(placementId: String): Boolean
   fun load(placementId: String, callback: (Result<PLoadResult>) -> Unit)
+  fun reload(placementId: String, callback: (Result<PLoadResult>) -> Unit)
   fun setEnabled(placementId: String, enabled: Boolean)
 
   companion object {
@@ -1465,6 +1466,26 @@ interface NativeAdHostApi {
             val args = message as List<Any?>
             val placementIdArg = args[0] as String
             api.load(placementIdArg) { result: Result<PLoadResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(AdflowApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(AdflowApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.adflow_flutter.NativeAdHostApi.reload$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val placementIdArg = args[0] as String
+            api.reload(placementIdArg) { result: Result<PLoadResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(AdflowApiPigeonUtils.wrapError(error))

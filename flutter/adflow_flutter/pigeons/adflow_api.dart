@@ -244,6 +244,9 @@ abstract class NativeAdHostApi {
   @async
   PLoadResult load(String placementId);
 
+  @async
+  PLoadResult reload(String placementId);
+
   void setEnabled(String placementId, bool enabled);
 }
 

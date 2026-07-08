@@ -1,3 +1,13 @@
+## 0.3.0
+
+* `AdFlowNativeAd.reload()`: force-fetch a new native ad even while the currently cached one is
+  still within its expiry window (`load()` no-ops in that case). Bumps the underlying
+  `adflow-core`/`adflow-admob` dependency to `v0.4.0`. Does not rebind any already-built
+  `AdFlowNativeAdView` - recreate the widget (e.g. bump its `Key`) once `reload()` resolves
+  successfully to pick up the new ad. If the reload fails, the previously cached ad is left in
+  place. See README "Hiển thị từng loại ad" section for the recommended integration point
+  (`RouteAware.didPopNext()`).
+
 ## 0.2.1
 
 * Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.3.0`, which renames the
