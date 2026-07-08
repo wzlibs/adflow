@@ -9,6 +9,7 @@ class AdPlacements {
           const PlacementConfig(
             placementId: 'splash_interstitial',
             adUnitIds: ['ca-app-pub-3940256099942544/1033173712'],
+            preloadEnabled: false
           ),
         ),
         globalInterstitial = AdFlowInterstitialAd(
