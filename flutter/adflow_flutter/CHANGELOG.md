@@ -1,3 +1,16 @@
+## 0.5.0
+
+* Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.7.0`. `showRule` on a
+  Native/Banner placement now actually blocks rendering (previously ignored - only
+  Interstitial/App Open/Rewarded honored it). Both the "not loaded yet" and "showRule rejected"
+  cases now report through `AdFlowNativeAdView.onShowBlocked`/`AdFlowBannerAdView.onShowBlocked`
+  instead of one of them throwing, so a `showRule` rejection after an ad was already cached can no
+  longer crash the app.
+* `AdFlowNativeAdView`/`AdFlowBannerAdView` no longer need an `isReady`/readiness check before
+  building the widget - call them directly and use `onShowBlocked` to hide/retry if blocked. See
+  `example/lib/home_screen.dart` (`_retryWhileBlocked`) for the recommended pattern. No breaking
+  API change - `onShowBlocked` is a new optional callback.
+
 ## 0.4.2
 
 * Fix: `setEnabled(false)` only blocked `show()` for Interstitial/App Open/Rewarded, and had no

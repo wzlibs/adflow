@@ -14,7 +14,7 @@ hoặc thêm thủ công vào `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  adflow_flutter: ^0.2.0
+  adflow_flutter: ^0.5.0
 ```
 
 ### Cách 2 - qua `path:` (khi muốn test trực tiếp source chưa publish)
@@ -29,7 +29,7 @@ dependencies:
 
 ### Bước bắt buộc - khai báo repository JitPack
 
-`adflow_flutter` phụ thuộc `adflow-core`/`adflow-admob`, được publish qua [JitPack](https://jitpack.io) (`com.github.wzlibs.adflow:core`/`admob`). Gradle **không tự động** cho app tiêu thụ thấy được repository này chỉ vì plugin đã khai báo nó - dependency của 1 configuration chỉ resolve qua repositories khai báo ở project sở hữu configuration đó (ở đây là chính app của bạn), không "mượn" repository của plugin dù có quan hệ dependency trực tiếp. Nếu bỏ qua bước này, build sẽ báo `Could not find com.github.wzlibs.adflow:core:v0.2.0`.
+`adflow_flutter` phụ thuộc `adflow-core`/`adflow-admob`, được publish qua [JitPack](https://jitpack.io) (`com.github.wzlibs.adflow:core`/`admob`). Gradle **không tự động** cho app tiêu thụ thấy được repository này chỉ vì plugin đã khai báo nó - dependency của 1 configuration chỉ resolve qua repositories khai báo ở project sở hữu configuration đó (ở đây là chính app của bạn), không "mượn" repository của plugin dù có quan hệ dependency trực tiếp. Nếu bỏ qua bước này, build sẽ báo `Could not find com.github.wzlibs.adflow:core:v0.7.0`.
 
 Thêm vào `android/build.gradle.kts` của app (theo đúng mẫu đang dùng ở `flutter/adflow_flutter/example/android/build.gradle.kts`):
 
@@ -292,7 +292,7 @@ Toàn bộ App ID/Ad Unit ID trong ví dụ ở tài liệu này là **ID test c
 
 - `AdRule` (loadRule/showRule) không bridge qua channel được - chỉ hỗ trợ on/off qua `setEnabled()`; logic gating phức tạp hơn (cooldown, theo giờ...) phải tự viết ở tầng Dart.
 - Banner cố định `AdSize.BANNER` (320x50) - chưa hỗ trợ adaptive banner.
-- Tag JitPack trong `android/build.gradle.kts` (`com.github.wzlibs.adflow:core:v0.2.0`/`admob:v0.2.0`) phải bump thủ công mỗi khi `adflow-core`/`adflow-admob` ra tag mới - quên bump sẽ khiến plugin build với version cũ một cách âm thầm.
+- Tag JitPack trong `android/build.gradle.kts` (`com.github.wzlibs.adflow:core:v0.7.0`/`admob:v0.7.0`) phải bump thủ công mỗi khi `adflow-core`/`adflow-admob` ra tag mới - quên bump sẽ khiến plugin build với version cũ một cách âm thầm.
 - `show()` cần 1 `Activity` đang attach với Flutter engine - gọi quá sớm (chưa có Activity nào) sẽ báo `onShowBlocked(BlockReason.notReady)` thay vì hiển thị, không crash.
 - `RetryPolicy` mặc định retry **không giới hạn** khi no-fill (backoff tăng dần, trần 60s/lần) - `load()` sẽ không tự bỏ cuộc, cứ thử mãi cho tới khi có fill hoặc app tự huỷ theo cách khác (vd tắt placement qua `setEnabled(false)`). Cần tính vào UX loading nếu app hiển thị spinner chờ `load()`.
 - iOS: chưa hỗ trợ.
