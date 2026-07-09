@@ -55,7 +55,7 @@ open class AdMobNativeAdManager(
         val assets = NativeAdAssets(
             headline = ad.headline.orEmpty(),
             body = ad.body,
-            iconUri = ad.icon?.uri?.toString(),
+            icon = ad.icon?.drawable,
             callToAction = ad.callToAction,
             starRating = ad.starRating,
             advertiser = ad.advertiser,

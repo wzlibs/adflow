@@ -27,7 +27,7 @@ class NativeAdRendererContractTest {
         val assets = NativeAdAssets(
             headline = "Great app",
             body = null,
-            iconUri = null,
+            icon = null,
             callToAction = null,
             starRating = null,
             advertiser = null,
