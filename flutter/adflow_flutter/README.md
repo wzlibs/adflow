@@ -200,7 +200,7 @@ if (nativeReady) AdFlowNativeAdView(ad: placements.native),
 
 **Custom native ad UI (`rendererId`):** UI native ad mặc định là `DefaultMediumNativeAdRenderer` (Kotlin, phía native). Vì `NativeAdRenderer` trả về 1 `View` Android thật (cần cho AdMob gắn click-tracking qua `NativeAdView.setNativeAd()`), 1 layout tùy biến hoàn toàn phải viết bằng Kotlin - không mô tả được bằng Dart widget tree. Các bước:
 
-1. Viết 1 class Kotlin implement `NativeAdRenderer` (từ `adflow-core`), giống `DefaultMediumNativeAdRenderer`/`DefaultSmallNativeAdRenderer` (`adflow-admob`) làm mẫu - `createView(Context): View` trả về 1 `NativeAdView` chứa layout tùy ý, `bind(view, assets: NativeAdAssets)` gán dữ liệu (`headline`, `body`, `iconUri`, `callToAction`, `starRating`, `advertiser`) vào các view con. Code này nằm trong app (module `android/app`), dùng trực tiếp `com.google.android.gms.ads.nativead.NativeAdView` - `adflow-admob` khai báo `play-services-ads` là `implementation` (không lộ transitive), nên phải tự thêm `implementation("com.google.android.gms:play-services-ads:<version>")` vào `android/app/build.gradle.kts` của app.
+1. Viết 1 class Kotlin implement `NativeAdRenderer` (từ `adflow-core`), giống `DefaultMediumNativeAdRenderer`/`DefaultSmallNativeAdRenderer` (`adflow-admob`) làm mẫu - `createView(Context): View` trả về 1 `NativeAdView` chứa layout tùy ý, `bind(view, assets: NativeAdAssets)` gán dữ liệu (`headline`, `body`, `icon` - `Drawable?` đã decode sẵn từ `NativeAd.icon?.drawable`, `callToAction`, `starRating`, `advertiser`) vào các view con. Code này nằm trong app (module `android/app`), dùng trực tiếp `com.google.android.gms.ads.nativead.NativeAdView` - `adflow-admob` khai báo `play-services-ads` là `implementation` (không lộ transitive), nên phải tự thêm `implementation("com.google.android.gms:play-services-ads:<version>")` vào `android/app/build.gradle.kts` của app.
 2. Đăng ký renderer đó với 1 `rendererId` (String) trong `MainActivity.kt`, sau `super.configureFlutterEngine(...)`:
    ```kotlin
    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -214,6 +214,12 @@ if (nativeReady) AdFlowNativeAdView(ad: placements.native),
    ```
 
 Có thể đăng ký **nhiều renderer khác nhau** (gọi `registerNativeAdRenderer` nhiều lần với `rendererId` khác nhau) và dùng cho nhiều native ad placement khác nhau trong cùng 1 app - `rendererId` hoàn toàn độc lập với `placementId`, không giới hạn 1 renderer/app hay 1 renderer/placement. Nếu `rendererId` truyền từ Dart không khớp renderer nào đã đăng ký (vd quên gọi `registerNativeAdRenderer`, hoặc gọi trước khi `AdflowFlutterPlugin` kịp attach), tự động fallback về `DefaultMediumNativeAdRenderer` và log cảnh báo ra Logcat - không crash app.
+
+`rendererId` không bắt buộc phải trỏ tới renderer tự viết - cũng đăng ký được renderer có sẵn trong `adflow-admob`, ví dụ `DefaultSmallNativeAdRenderer` (headline + icon + body, gọn hơn `DefaultMediumNativeAdRenderer` vì không có `MediaView`):
+```kotlin
+AdflowFlutterPlugin.registerNativeAdRenderer(flutterEngine, "small", DefaultSmallNativeAdRenderer())
+```
+Xem `example/android/app/.../MainActivity.kt` để có ví dụ đăng ký song song cả renderer có sẵn lẫn renderer tự viết.
 
 Với cả banner lẫn native: **chỉ build widget sau khi `await ad.load()` đã thành công** - `load()` trả về 1 `Future` thật, tự nó đã đủ để biết chính xác thời điểm ad sẵn sàng, không cần polling `isReady()` thêm.
 

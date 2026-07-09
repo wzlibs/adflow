@@ -258,6 +258,8 @@ if (placements.native.isReady()) {
 }
 ```
 
+Có 2 renderer dựng sẵn trong `adflow-admob`: `DefaultMediumNativeAdRenderer` (headline + media + body + CTA, dọc) và `DefaultSmallNativeAdRenderer` (headline + icon + body, gọn hơn, không có `MediaView`, dùng khi không đủ chỗ cho ảnh media lớn - vd item trong list). Viết `NativeAdRenderer` riêng nếu cần layout khác - `bind(view, assets: NativeAdAssets)` nhận `headline`, `body`, `icon` (`Drawable?` đã decode sẵn từ `NativeAd.icon?.drawable`, gán thẳng qua `ImageView.setImageDrawable()`), `callToAction`, `starRating`, `advertiser`.
+
 `BannerAdView`/`NativeAdView` tự kiểm tra `isReady()` bên trong, nhưng Compose sẽ không tự recompose khi ad load xong ở background - nên bọc thêm 1 state được cập nhật qua polling `isReady()` (ví dụ vòng lặp `delay(500)` trong `LaunchedEffect`) nếu muốn ad tự xuất hiện ngay khi sẵn sàng thay vì chỉ ở lần recompose kế tiếp.
 
 **Đổi sang native ad mới (`reload()`):** khác với Interstitial/Rewarded (tự "tiêu thụ" khi `show()`
