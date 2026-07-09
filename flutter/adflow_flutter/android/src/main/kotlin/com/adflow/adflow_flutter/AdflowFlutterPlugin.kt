@@ -68,10 +68,13 @@ class AdflowFlutterPlugin : FlutterPlugin, ActivityAware {
         BannerAdHostApi.setUp(binding.binaryMessenger, BannerAdHostApiImpl(registry))
         NativeAdHostApi.setUp(binding.binaryMessenger, NativeAdHostApiImpl(registry))
 
-        binding.platformViewRegistry.registerViewFactory(BANNER_VIEW_TYPE, BannerPlatformViewFactory(registry))
+        binding.platformViewRegistry.registerViewFactory(
+            BANNER_VIEW_TYPE,
+            BannerPlatformViewFactory(registry, flutterApi),
+        )
         binding.platformViewRegistry.registerViewFactory(
             NATIVE_VIEW_TYPE,
-            NativePlatformViewFactory(registry, nativeAdRenderers),
+            NativePlatformViewFactory(registry, nativeAdRenderers, flutterApi),
         )
     }
 

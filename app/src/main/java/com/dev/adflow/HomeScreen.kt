@@ -1,5 +1,6 @@
 package com.dev.adflow
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +30,8 @@ import com.adflow.core.RewardedAdCallback
 import com.adflow.core.ShowCallback
 import kotlinx.coroutines.delay
 
+private const val TAG = "AdFlowDemo"
+
 @Composable
 fun HomeScreen(placements: DemoAdPlacements) {
     val context = LocalContext.current
@@ -39,29 +42,33 @@ fun HomeScreen(placements: DemoAdPlacements) {
     val consentManager = remember { placements.provider.createConsentManager(context) }
     val privacyOptionsRequired = consentManager.getPrivacyOptionsRequirement() == PrivacyOptionsRequirement.REQUIRED
 
-    // NativeAdView/BannerAdView đều tự check lại isReady() ở mỗi lần recomposition, nhưng
-    // không có gì ở đây kích hoạt recomposition khi ad load xong ở background, nên 1 ad
-    // chưa ready sẽ âm thầm không bao giờ xuất hiện. Poll isReady() theo 1 khoảng ngắn cho
-    // đến khi mỗi ad ready thì dừng; việc đọc state kết quả ở dưới chính là thứ buộc
-    // HomeScreen phải recompose vào lúc đó.
-    var nativeReady by remember { mutableStateOf(placements.native.isReady()) }
+    // NativeAdView/BannerAdView được gọi thẳng ngay, không check isReady() trước - nếu ad chưa
+    // sẵn sàng, onShowBlocked báo về và nativeBlocked/bannerBlocked bật lên để ẩn UI phụ thuộc
+    // (nút Reload). View thật bên trong tự render rỗng (GONE) khi bị chặn, không cần ẩn thủ công.
+    // AndroidView() chỉ chạy factory tạo View 1 lần duy nhất lúc emit, không tự thử lại khi ad
+    // load xong ở background - nên khi đang bị chặn, poll định kỳ rồi bump *Generation để ép
+    // key() tạo lại NativeAdView/BannerAdView, tự động thử createView()/getView() lại lần nữa.
+    var nativeGeneration by remember { mutableStateOf(0) }
+    var nativeBlocked by remember { mutableStateOf(false) }
     LaunchedEffect(placements.native) {
-        while (!nativeReady) {
+        while (true) {
             delay(500)
-            nativeReady = placements.native.isReady()
+            if (nativeBlocked) {
+                nativeBlocked = false
+                nativeGeneration++
+            }
         }
     }
 
-    // Bump nativeGeneration bên trong callback thành công của reload() (không phải ngay khi bấm
-    // nút) để việc tạo lại NativeAdView chỉ diễn ra sau khi ad mới đã swap xong - key() đổi giá
-    // trị sẽ khiến AndroidView bên trong tự huỷ-tạo lại, đọc đúng cachedAd mới nhất.
-    var nativeGeneration by remember { mutableStateOf(0) }
-
-    var bannerReady by remember { mutableStateOf(placements.banner.isReady()) }
+    var bannerGeneration by remember { mutableStateOf(0) }
+    var bannerBlocked by remember { mutableStateOf(false) }
     LaunchedEffect(placements.banner) {
-        while (!bannerReady) {
+        while (true) {
             delay(500)
-            bannerReady = placements.banner.isReady()
+            if (bannerBlocked) {
+                bannerBlocked = false
+                bannerGeneration++
+            }
         }
     }
 
@@ -106,9 +113,7 @@ fun HomeScreen(placements: DemoAdPlacements) {
             }) { Text("Privacy options") }
         }
 
-        // Đọc nativeReady/bannerReady ở đây (dù các composable đã tự check lại isReady())
-        // chính là thứ gắn recomposition với các thay đổi trạng thái ad-ready.
-        if (nativeReady) {
+        if (!nativeBlocked) {
             Button(onClick = {
                 placements.native.reload { result ->
                     if (result is AdLoadResult.Success) nativeGeneration++
@@ -116,12 +121,24 @@ fun HomeScreen(placements: DemoAdPlacements) {
             }) {
                 Text("Reload Native Ad")
             }
-            key(nativeGeneration) {
-                NativeAdView(manager = placements.native)
-            }
         }
-        if (bannerReady) {
-            BannerAdView(manager = placements.banner)
+        key(nativeGeneration) {
+            NativeAdView(
+                manager = placements.native,
+                onShowBlocked = { reason ->
+                    nativeBlocked = true
+                    Log.d(TAG, "Native ad blocked: $reason")
+                },
+            )
+        }
+        key(bannerGeneration) {
+            BannerAdView(
+                manager = placements.banner,
+                onShowBlocked = { reason ->
+                    bannerBlocked = true
+                    Log.d(TAG, "Banner ad blocked: $reason")
+                },
+            )
         }
     }
 }

@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 
 import 'ad_placements.dart';
 
-/// Mirror Dart của `HomeScreen.kt` - poll `isReady` cho banner/native để biết khi nào render
-/// [AdFlowBannerAdView]/[AdFlowNativeAdView] (widget đó không tự trigger rebuild khi ad load xong
-/// ở background).
+/// Mirror Dart của `HomeScreen.kt` - gọi thẳng [AdFlowBannerAdView]/[AdFlowNativeAdView], không
+/// check `isReady` trước. Nếu bị chặn (chưa `load()` xong hoặc `showRule` từ chối),
+/// `onShowBlocked` bật cờ `*Blocked` tương ứng để ẩn widget đó; 1 vòng poll định kỳ tự bump
+/// `*Generation` (đổi `Key`) để thử tạo lại platform view khi đang bị chặn, cho tới khi thành
+/// công - xem `_retryWhileBlocked`.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.placements});
 
@@ -18,22 +20,49 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _premium = false;
   PRewardItem? _lastReward;
-  bool _bannerReady = false;
-  bool _nativeReady = false;
-  bool _feedNativeReady = false;
-  bool _smallNativeReady = false;
+  bool _bannerBlocked = false;
+  bool _nativeBlocked = false;
+  bool _feedNativeBlocked = false;
+  bool _smallNativeBlocked = false;
   bool _privacyOptionsRequired = false;
-  // Bump chỉ khi reload() thành công, dùng làm Key của AdFlowNativeAdView bên dưới để ép Flutter
-  // huỷ-tạo lại platform view đó, đọc đúng native ad mới nhất vừa swap xong.
+  // Đổi Key của widget tương ứng để ép Flutter huỷ-tạo lại platform view đó - dùng cả khi
+  // reload() thành công (đọc đúng native ad mới nhất) lẫn khi retry sau khi bị chặn.
+  int _bannerGeneration = 0;
   int _nativeGeneration = 0;
+  int _feedNativeGeneration = 0;
+  int _smallNativeGeneration = 0;
 
   @override
   void initState() {
     super.initState();
-    _pollBannerReady();
-    _pollNativeReady();
-    _pollFeedNativeReady();
-    _pollSmallNativeReady();
+    _retryWhileBlocked(
+      isBlocked: () => _bannerBlocked,
+      retry: () => setState(() {
+        _bannerBlocked = false;
+        _bannerGeneration++;
+      }),
+    );
+    _retryWhileBlocked(
+      isBlocked: () => _nativeBlocked,
+      retry: () => setState(() {
+        _nativeBlocked = false;
+        _nativeGeneration++;
+      }),
+    );
+    _retryWhileBlocked(
+      isBlocked: () => _feedNativeBlocked,
+      retry: () => setState(() {
+        _feedNativeBlocked = false;
+        _feedNativeGeneration++;
+      }),
+    );
+    _retryWhileBlocked(
+      isBlocked: () => _smallNativeBlocked,
+      retry: () => setState(() {
+        _smallNativeBlocked = false;
+        _smallNativeGeneration++;
+      }),
+    );
     _loadPrivacyOptionsRequirement();
   }
 
@@ -43,51 +72,17 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _privacyOptionsRequired = requirement == PPrivacyOptionsRequirement.required);
   }
 
-  Future<void> _pollBannerReady() async {
-    while (mounted && !_bannerReady) {
-      final ready = await widget.placements.banner.isReady;
-      if (!mounted) return;
-      if (ready) {
-        setState(() => _bannerReady = true);
-        return;
-      }
+  /// Poll vĩnh viễn (mỗi 500ms) trong khi [isBlocked] còn true - mỗi lần vẫn còn bị chặn thì gọi
+  /// [retry] (reset cờ blocked + bump generation) để widget tương ứng được build lại và tự thử
+  /// tạo platform view lần nữa.
+  Future<void> _retryWhileBlocked({
+    required bool Function() isBlocked,
+    required VoidCallback retry,
+  }) async {
+    while (mounted) {
       await Future.delayed(const Duration(milliseconds: 500));
-    }
-  }
-
-  Future<void> _pollNativeReady() async {
-    while (mounted && !_nativeReady) {
-      final ready = await widget.placements.native.isReady;
       if (!mounted) return;
-      if (ready) {
-        setState(() => _nativeReady = true);
-        return;
-      }
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
-  }
-
-  Future<void> _pollFeedNativeReady() async {
-    while (mounted && !_feedNativeReady) {
-      final ready = await widget.placements.feedNative.isReady;
-      if (!mounted) return;
-      if (ready) {
-        setState(() => _feedNativeReady = true);
-        return;
-      }
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
-  }
-
-  Future<void> _pollSmallNativeReady() async {
-    while (mounted && !_smallNativeReady) {
-      final ready = await widget.placements.smallNative.isReady;
-      if (!mounted) return;
-      if (ready) {
-        setState(() => _smallNativeReady = true);
-        return;
-      }
-      await Future.delayed(const Duration(milliseconds: 500));
+      if (isBlocked()) retry();
     }
   }
 
@@ -139,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () => AdFlowCore.showPrivacyOptionsForm(),
                   child: const Text('Privacy options'),
                 ),
-              if (_nativeReady) ...[
+              if (!_nativeBlocked)
                 ElevatedButton(
                   onPressed: () async {
                     final result = await widget.placements.native.reload();
@@ -148,28 +143,38 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   child: const Text('Reload Native Ad'),
                 ),
+              // Gọi thẳng, không check isReady() trước - onShowBlocked ẩn widget này đi (bọc
+              // bằng "if (!_nativeBlocked)") và _retryWhileBlocked tự thử lại định kỳ.
+              if (!_nativeBlocked)
                 AdFlowNativeAdView(
                   key: ValueKey(_nativeGeneration),
                   ad: widget.placements.native,
+                  onShowBlocked: (reason) {
+                    setState(() => _nativeBlocked = true);
+                    debugPrint('Native ad blocked: $reason');
+                  },
                 ),
-              ],
               // Placement Native thứ 2, render bằng renderer tùy biến 'compactCard' (đăng ký ở
               // MainActivity.kt) - minh hoạ nhiều native ad placement cùng lúc, mỗi placement 1 UI
               // riêng (khác hẳn layout dọc mặc định ở trên).
-              if (_feedNativeReady)
+              if (!_feedNativeBlocked)
                 AdFlowNativeAdView(
+                  key: ValueKey(_feedNativeGeneration),
                   ad: widget.placements.feedNative,
                   rendererId: 'compactCard',
                   height: 100,
+                  onShowBlocked: (reason) => setState(() => _feedNativeBlocked = true),
                 ),
               // Placement Native thứ 3, render bằng renderer có sẵn 'small'
               // (DefaultSmallNativeAdRenderer, đăng ký ở MainActivity.kt) - minh hoạ rendererId
               // dùng lại renderer có sẵn trong lib chứ không nhất thiết phải tự viết Kotlin mới.
-              if (_smallNativeReady)
+              if (!_smallNativeBlocked)
                 AdFlowNativeAdView(
+                  key: ValueKey(_smallNativeGeneration),
                   ad: widget.placements.smallNative,
                   rendererId: 'small',
                   height: 120,
+                  onShowBlocked: (reason) => setState(() => _smallNativeBlocked = true),
                 ),
             ],
           ),
@@ -177,9 +182,18 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       // Banner neo cố định ở đáy màn hình (bottomNavigationBar) - Scaffold tự chừa chỗ cho body,
       // nên không đè lên nội dung khác dù chiều cao ad thật lớn hơn giá trị mặc định 1 chút.
-      bottomNavigationBar: _bannerReady
-          ? SafeArea(child: AdFlowBannerAdView(ad: widget.placements.banner))
-          : null,
+      bottomNavigationBar: _bannerBlocked
+          ? null
+          : SafeArea(
+              child: AdFlowBannerAdView(
+                key: ValueKey(_bannerGeneration),
+                ad: widget.placements.banner,
+                onShowBlocked: (reason) {
+                  setState(() => _bannerBlocked = true);
+                  debugPrint('Banner ad blocked: $reason');
+                },
+              ),
+            ),
     );
   }
 }

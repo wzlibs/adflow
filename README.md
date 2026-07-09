@@ -205,7 +205,7 @@ Các field hay dùng của `PlacementConfig`:
 
 - `placementId` - định danh duy nhất cho placement này, dùng trong log và trong `AdRule`.
 - `adUnitIds` - danh sách ad unit ID theo thứ tự waterfall (thử ID đầu, hết fill thì rơi xuống ID kế tiếp).
-- `loadRule` / `showRule` - kiểu `AdRule { isAllowed(placementId): Boolean }`, dùng để tắt load/show có điều kiện (ví dụ user đã mua gói premium thì trả về `false`). Với Interstitial/App Open/Rewarded, `showRule` từ chối thì `show()` gọi `onShowBlocked(BlockReason.RULE_REJECTED)` qua callback. Với Native/Banner - vốn không có `show(callback)` riêng, chỉ có `createView()`/`getView()` trả thẳng `View` - `showRule` từ chối làm `createView()`/`getView()` **throw `IllegalStateException`** (cùng cách "not ready" đã throw sẵn) thay vì trả `View`; tự kiểm tra điều kiện tương đương (hoặc gọi trong `try/catch`) trước khi build `View` nếu dùng `showRule` cho Native/Banner.
+- `loadRule` / `showRule` - kiểu `AdRule { isAllowed(placementId): Boolean }`, dùng để tắt load/show có điều kiện (ví dụ user đã mua gói premium thì trả về `false`). `showRule` từ chối không bao giờ throw cho bất kỳ loại ad nào - Interstitial/App Open/Rewarded báo qua `onShowBlocked(BlockReason.RULE_REJECTED)` của `show()`; Native/Banner báo qua tham số `onShowBlocked` của `createView()`/`getView()` (xem mục 6).
 - `retryPolicy` và `expiryMs` có giá trị mặc định hợp lý (retry backoff khi load lỗi, ad hết hạn sau 4 giờ) - chỉ cần chỉnh khi có yêu cầu đặc biệt.
 
 ## 6. Hiển thị từng loại ad
@@ -241,30 +241,55 @@ placements.rewarded.show(activity, object : RewardedAdCallback {
 **Banner:**
 
 ```kotlin
-// View truyền thống
-val bannerView: View = placements.banner.getView(context)
-
-// Compose
-if (placements.banner.isReady()) {
-    BannerAdView(manager = placements.banner)
+// View truyền thống - luôn an toàn để gọi, không cần check isReady() trước. Nếu ad chưa
+// ready hoặc showRule đang từ chối, trả về 1 View rỗng và báo lý do qua onShowBlocked.
+val bannerView: View = placements.banner.getView(context) { reason ->
+    /* bị chặn: BlockReason.NOT_READY hoặc BlockReason.RULE_REJECTED */
 }
+
+// Compose - gọi thẳng, không cần check isReady() trước (xem ghi chú bên dưới ví dụ Native)
+BannerAdView(manager = placements.banner, onShowBlocked = { reason -> /* ẩn/log nếu cần */ })
 ```
 
 **Native:**
 
 ```kotlin
-// View truyền thống, cần 1 NativeAdRenderer (có thể viết renderer tùy biến)
-val nativeView: View = placements.native.createView(context, MyCustomRenderer())
+// View truyền thống, cần 1 NativeAdRenderer (có thể viết renderer tùy biến) - cũng luôn an
+// toàn để gọi như Banner ở trên.
+val nativeView: View = placements.native.createView(context, MyCustomRenderer()) { reason -> /* ... */ }
 
-// Compose, dùng renderer mặc định có sẵn
-if (placements.native.isReady()) {
-    NativeAdView(manager = placements.native, renderer = DefaultMediumNativeAdRenderer())
-}
+// Compose, dùng renderer mặc định có sẵn - gọi thẳng, không cần check isReady() trước
+NativeAdView(
+    manager = placements.native,
+    renderer = DefaultMediumNativeAdRenderer(),
+    onShowBlocked = { reason -> /* ẩn/log nếu cần */ },
+)
 ```
 
 Có 2 renderer dựng sẵn trong `adflow-admob`: `DefaultMediumNativeAdRenderer` (headline + media + body + CTA, dọc) và `DefaultSmallNativeAdRenderer` (headline + icon + body, gọn hơn, không có `MediaView`, dùng khi không đủ chỗ cho ảnh media lớn - vd item trong list). Viết `NativeAdRenderer` riêng nếu cần layout khác - `bind(view, assets: NativeAdAssets)` nhận `headline`, `body`, `icon` (`Drawable?` đã decode sẵn từ `NativeAd.icon?.drawable`, gán thẳng qua `ImageView.setImageDrawable()`), `callToAction`, `starRating`, `advertiser`.
 
-`BannerAdView`/`NativeAdView` tự kiểm tra `isReady()` bên trong, nhưng Compose sẽ không tự recompose khi ad load xong ở background - nên bọc thêm 1 state được cập nhật qua polling `isReady()` (ví dụ vòng lặp `delay(500)` trong `LaunchedEffect`) nếu muốn ad tự xuất hiện ngay khi sẵn sàng thay vì chỉ ở lần recompose kế tiếp.
+`createView()`/`getView()` (và `NativeAdView`/`BannerAdView` bọc chúng) không bao giờ throw và luôn an toàn để gọi thẳng, không cần check `isReady()` trước - nếu bị chặn (chưa ready hoặc `showRule` từ chối), trả về 1 `View` rỗng (`visibility = GONE`, không chiếm layout) và báo lý do qua tham số `onShowBlocked: (BlockReason) -> Unit`, giống hệt cách `show()` của full-screen ad báo qua `onShowBlocked` của `ShowCallback`.
+
+`AndroidView` bên trong `NativeAdView`/`BannerAdView` chỉ chạy factory (tạo `View` thật) đúng 1 lần lúc composable được đưa vào composition - các lần recompose sau đó không tự tạo lại `View`, nên nếu bị chặn lúc mới emit (vd ad chưa load xong), nó sẽ kẹt ở `View` rỗng mãi trừ khi được ép tạo lại. Dùng `onShowBlocked` để đặt 1 flag "đang bị chặn", rồi poll định kỳ (`LaunchedEffect` + `delay(500)`) để bump 1 `key()` bọc quanh composable khi flag đó đang bật - `key()` đổi giá trị sẽ ép Compose huỷ-tạo lại `AndroidView`, tự động thử `createView()`/`getView()` lại lần nữa cho tới khi thành công:
+
+```kotlin
+var generation by remember { mutableStateOf(0) }
+var blocked by remember { mutableStateOf(false) }
+LaunchedEffect(placements.native) {
+    while (true) {
+        delay(500)
+        if (blocked) {
+            blocked = false
+            generation++
+        }
+    }
+}
+key(generation) {
+    NativeAdView(manager = placements.native, onShowBlocked = { blocked = true })
+}
+```
+
+Xem `app/src/main/java/com/dev/adflow/HomeScreen.kt` để có ví dụ đầy đủ (native + banner, cả nút "Reload" chỉ hiện khi `!blocked`).
 
 **Đổi sang native ad mới (`reload()`):** khác với Interstitial/Rewarded (tự "tiêu thụ" khi `show()`
 nên tự nhiên đã reload), 1 native ad được cache và tái sử dụng vô thời hạn cho tới khi hết hạn

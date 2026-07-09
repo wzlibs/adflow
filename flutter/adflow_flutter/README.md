@@ -184,9 +184,21 @@ await placements.rewarded.show(
 ```dart
 Scaffold(
   body: ...,
-  bottomNavigationBar: bannerReady
-      ? SafeArea(child: AdFlowBannerAdView(ad: placements.banner))
-      : null,
+  // Gọi thẳng, không check isReady trước - onShowBlocked bật cờ _bannerBlocked để ẩn widget
+  // này đi (bottomNavigationBar: null), và 1 vòng poll định kỳ tự bump Key để thử lại (xem ghi
+  // chú dưới và example/lib/home_screen.dart).
+  bottomNavigationBar: _bannerBlocked
+      ? null
+      : SafeArea(
+          child: AdFlowBannerAdView(
+            key: ValueKey(_bannerGeneration),
+            ad: placements.banner,
+            onShowBlocked: (reason) {
+              // PBlockReason.notReady hoặc .ruleRejected.
+              setState(() => _bannerBlocked = true);
+            },
+          ),
+        ),
 )
 ```
 
@@ -195,7 +207,12 @@ Nên đặt banner ở `bottomNavigationBar` của `Scaffold` thay vì trực ti
 **Native:**
 
 ```dart
-if (nativeReady) AdFlowNativeAdView(ad: placements.native),
+if (!_nativeBlocked)
+  AdFlowNativeAdView(
+    key: ValueKey(_nativeGeneration),
+    ad: placements.native,
+    onShowBlocked: (reason) => setState(() => _nativeBlocked = true),
+  ),
 ```
 
 `AdFlowNativeAdView` có `height` mặc định `250`, đủ cho renderer mặc định `DefaultMediumNativeAdRenderer` (headline + media + body + CTA) - đổi `height` phù hợp nếu dùng renderer khác.
@@ -223,7 +240,7 @@ AdflowFlutterPlugin.registerNativeAdRenderer(flutterEngine, "small", DefaultSmal
 ```
 Xem `example/android/app/.../MainActivity.kt` để có ví dụ đăng ký song song cả renderer có sẵn lẫn renderer tự viết.
 
-Với cả banner lẫn native: **chỉ build widget sau khi `await ad.load()` đã thành công** - `load()` trả về 1 `Future` thật, tự nó đã đủ để biết chính xác thời điểm ad sẵn sàng, không cần polling `isReady()` thêm.
+Với cả banner lẫn native: `AdFlowBannerAdView`/`AdFlowNativeAdView` luôn an toàn để gọi thẳng ngay, không cần `await ad.load()` hay check `isReady` trước - phía Kotlin không throw, chỉ render rỗng và báo qua `onShowBlocked` khi bị chặn (chưa `load()` xong, hoặc `showRule` từ chối). Nhưng platform view Android chỉ được tạo đúng 1 lần lúc build - nếu bị chặn ngay từ đầu, nó sẽ kẹt ở trạng thái rỗng mãi trừ khi được build lại với 1 `Key` mới. Pattern khuyến nghị (như 2 ví dụ trên): dùng `onShowBlocked` để đặt cờ `*Blocked`, bọc widget bằng `if (!blocked)` để ẩn nó đi, rồi poll định kỳ (`Future.delayed` lặp trong 1 vòng `while`) để reset cờ đó + bump 1 giá trị dùng làm `Key` khi còn đang bị chặn - ép Flutter build lại và tự thử tạo platform view lần nữa cho tới khi thành công. Xem `example/lib/home_screen.dart` (hàm `_retryWhileBlocked`) để có ví dụ đầy đủ, áp dụng cho cả 4 placement Banner/Native trong app mẫu.
 
 **Đổi sang native ad mới (`reload()`):** 1 native ad được cache và tái sử dụng vô thời hạn tới khi
 hết hạn (mặc định 4h) - `load()` sẽ no-op nếu ad đang cache vẫn còn hạn. Nếu muốn ép đổi sang ad

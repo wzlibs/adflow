@@ -5,9 +5,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.adflow.core.BannerAdManager
+import com.adflow.core.BlockReason
 
 @Composable
-fun BannerAdView(manager: BannerAdManager, modifier: Modifier = Modifier.fillMaxWidth()) {
-    if (!manager.isReady()) return
-    AndroidView(factory = { context -> manager.getView(context) }, modifier = modifier)
+fun BannerAdView(
+    manager: BannerAdManager,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    onShowBlocked: (BlockReason) -> Unit = {},
+) {
+    AndroidView(factory = { context -> manager.getView(context, onShowBlocked) }, modifier = modifier)
 }

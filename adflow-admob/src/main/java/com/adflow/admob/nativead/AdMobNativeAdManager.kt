@@ -3,8 +3,11 @@ package com.adflow.admob.nativead
 import android.content.Context
 import android.view.View
 import com.adflow.admob.dispatchRevenue
+import com.adflow.core.AdFlowCore
+import com.adflow.core.AdFlowEvent
 import com.adflow.core.AdLoadResult
 import com.adflow.core.AdType
+import com.adflow.core.BlockReason
 import com.adflow.core.ExpiringCachedAdLoaderBase
 import com.adflow.core.NativeAdAssets
 import com.adflow.core.NativeAdManager
@@ -48,10 +51,19 @@ open class AdMobNativeAdManager(
         adLoader.loadAd(AdRequest.Builder().build())
     }
 
-    override fun createView(context: Context, renderer: NativeAdRenderer): View {
+    override fun createView(context: Context, renderer: NativeAdRenderer, onShowBlocked: (BlockReason) -> Unit): View {
         dropIfExpired()
-        val ad = cachedAd ?: throw IllegalStateException("Native ad for '${config.placementId}' has not loaded yet")
-        requireShowAllowed()
+        val ad = cachedAd
+        if (ad == null) {
+            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "not ready")
+            onShowBlocked(BlockReason.NOT_READY)
+            return View(context).apply { visibility = View.GONE }
+        }
+        if (!isShowAllowed()) {
+            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "showRule rejected")
+            onShowBlocked(BlockReason.RULE_REJECTED)
+            return View(context).apply { visibility = View.GONE }
+        }
         val view = renderer.createView(context)
         val assets = NativeAdAssets(
             headline = ad.headline.orEmpty(),

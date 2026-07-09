@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'config.dart';
+import 'flutter_api_dispatcher.dart';
 import 'generated/adflow_api.g.dart';
 
 const _nativeViewType = 'adflow/native_ad_view';
@@ -35,8 +36,23 @@ class AdFlowNativeAd {
 /// kích thước để cấp phát layout, nếu không platform view sẽ co về cao 0 (vô hình) khi đặt trong
 /// 1 Column. `height` mặc định 250 đủ chỗ cho template `DefaultMediumNativeAdRenderer` (headline +
 /// media + body + CTA) - chỉnh lại nếu dùng renderer khác.
-class AdFlowNativeAdView extends StatelessWidget {
-  const AdFlowNativeAdView({super.key, required this.ad, this.height = 250, this.rendererId});
+///
+/// Luôn an toàn để build ngay, không cần `await ad.load()` hay check `isReady` trước - phía
+/// Kotlin (`NativeAdManager.createView()`) không throw, chỉ render 1 View rỗng và báo lý do qua
+/// [onShowBlocked] khi bị chặn (chưa `load()` xong, hoặc `showRule` từ chối). Nhưng platform view
+/// Android chỉ được tạo đúng 1 lần lúc build - nếu bị chặn ngay từ đầu, nó sẽ kẹt ở trạng thái
+/// rỗng mãi trừ khi được build lại với 1 [Key] mới. Pattern khuyến nghị: dùng [onShowBlocked] để
+/// đặt cờ "đang bị chặn" (ẩn widget này đi bằng cách bọc `if (!blocked)`), rồi poll định kỳ để
+/// bump 1 giá trị dùng làm [Key] khi còn đang bị chặn, ép build lại và tự thử lần nữa cho tới khi
+/// thành công - xem `example/lib/home_screen.dart` để có ví dụ đầy đủ.
+class AdFlowNativeAdView extends StatefulWidget {
+  const AdFlowNativeAdView({
+    super.key,
+    required this.ad,
+    this.height = 250,
+    this.rendererId,
+    this.onShowBlocked,
+  });
 
   final AdFlowNativeAd ad;
   final double height;
@@ -50,16 +66,47 @@ class AdFlowNativeAdView extends StatelessWidget {
   /// crash app.
   final String? rendererId;
 
+  /// Gọi lại khi native ad không hiển thị được (chưa `load()` xong -
+  /// [PBlockReason.notReady], hoặc `showRule` đang từ chối - [PBlockReason.ruleRejected]). Tuỳ
+  /// chọn - bỏ qua nếu không cần biết lý do.
+  final void Function(PBlockReason reason)? onShowBlocked;
+
+  @override
+  State<AdFlowNativeAdView> createState() => _AdFlowNativeAdViewState();
+}
+
+class _AdFlowNativeAdViewState extends State<AdFlowNativeAdView> {
+  @override
+  void initState() {
+    super.initState();
+    FlutterApiDispatcher.instance.registerShowEventHandler(widget.ad.placementId, (
+      kind,
+      error,
+      blockReason,
+      reward,
+    ) {
+      if (kind == PShowEventKind.showBlocked && blockReason != null) {
+        widget.onShowBlocked?.call(blockReason);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    FlutterApiDispatcher.instance.unregisterShowEventHandler(widget.ad.placementId);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: height,
+      height: widget.height,
       width: double.infinity,
       child: AndroidView(
         viewType: _nativeViewType,
         creationParams: {
-          'placementId': ad.placementId,
-          if (rendererId != null) 'rendererId': rendererId,
+          'placementId': widget.ad.placementId,
+          if (widget.rendererId != null) 'rendererId': widget.rendererId,
         },
         creationParamsCodec: const StandardMessageCodec(),
       ),

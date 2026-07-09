@@ -1,14 +1,17 @@
 package com.adflow.admob.nativead
 
 import android.content.Context
+import android.view.View
 import com.adflow.core.AdLoadResult
 import com.adflow.core.AdRule
+import com.adflow.core.BlockReason
+import com.adflow.core.NativeAdAssets
+import com.adflow.core.NativeAdRenderer
 import com.adflow.core.PlacementConfig
 import com.adflow.core.RetryPolicy
 import com.google.android.gms.ads.nativead.NativeAd
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -92,14 +95,50 @@ class AdMobNativeAdManagerTest {
     }
 
     @Test
-    fun `createView() throws when showRule rejects, even though the ad is ready`() {
+    fun `createView() reports RULE_REJECTED and returns a GONE view instead of throwing when showRule rejects`() {
         val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"), showRule = AdRule { false })
         val manager = MockNativeAdManager(context, config, mutableListOf(mock<NativeAd>()))
         manager.load {}
-
         assertTrue(manager.isReady())
-        assertThrows(IllegalStateException::class.java) {
-            manager.createView(context, DefaultMediumNativeAdRenderer())
-        }
+
+        var blockedReason: BlockReason? = null
+        val view = manager.createView(context, DefaultMediumNativeAdRenderer()) { blockedReason = it }
+
+        assertEquals(BlockReason.RULE_REJECTED, blockedReason)
+        assertEquals(View.GONE, view.visibility)
+    }
+
+    @Test
+    fun `createView() reports NOT_READY and returns a GONE view instead of throwing when no ad is cached`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val manager = MockNativeAdManager(context, config, mutableListOf())
+        assertFalse(manager.isReady())
+
+        var blockedReason: BlockReason? = null
+        val view = manager.createView(context, DefaultMediumNativeAdRenderer()) { blockedReason = it }
+
+        assertEquals(BlockReason.NOT_READY, blockedReason)
+        assertEquals(View.GONE, view.visibility)
+    }
+
+    // Renderer thuần (không dùng MediaView thật) để tránh chạm vào
+    // GooglePlayServicesUtil.isGooglePlayServicesAvailable() - DefaultMediumNativeAdRenderer tạo
+    // MediaView thật, kiểm tra manifest meta-data không có sẵn dưới Robolectric.
+    private class FakeNativeAdRenderer : NativeAdRenderer {
+        override fun createView(context: Context): View = View(context)
+        override fun bind(view: View, assets: NativeAdAssets) {}
+    }
+
+    @Test
+    fun `createView() binds the real ad and never invokes onShowBlocked when ready and showRule allows`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val manager = MockNativeAdManager(context, config, mutableListOf(mock<NativeAd>()))
+        manager.load {}
+
+        var blockedReason: BlockReason? = null
+        val view = manager.createView(context, FakeNativeAdRenderer()) { blockedReason = it }
+
+        assertEquals(null, blockedReason)
+        assertFalse(view.visibility == View.GONE)
     }
 }

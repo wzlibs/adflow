@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.FrameLayout
 import com.adflow.admob.nativead.DefaultMediumNativeAdRenderer
 import com.adflow.adflow_flutter.PlacementRegistry
+import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
 import com.adflow.core.NativeAdManager
 import com.adflow.core.NativeAdRenderer
 import io.flutter.plugin.common.StandardMessageCodec
@@ -22,6 +23,7 @@ private const val TAG = "AdFlowFlutter"
 class NativePlatformViewFactory(
     private val registry: PlacementRegistry,
     private val renderers: Map<String, NativeAdRenderer>,
+    private val flutterApi: AdFlowFlutterApi,
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
@@ -29,7 +31,7 @@ class NativePlatformViewFactory(
         val placementId = map?.get("placementId") as? String
         val rendererId = map?.get("rendererId") as? String
         val manager = enabledManager(registry, placementId, registry.natives)
-        return NativePlatformView(context, manager, resolveRenderer(rendererId, renderers))
+        return NativePlatformView(context, manager, resolveRenderer(rendererId, renderers), placementId, flutterApi)
     }
 }
 
@@ -56,8 +58,14 @@ private class NativePlatformView(
     context: Context,
     manager: NativeAdManager?,
     renderer: NativeAdRenderer,
+    placementId: String?,
+    flutterApi: AdFlowFlutterApi,
 ) : PlatformView {
-    private val view: View = manager?.createView(context, renderer) ?: FrameLayout(context)
+    private val view: View = if (manager != null && placementId != null) {
+        manager.createView(context, renderer, showBlockedReporter(placementId, flutterApi))
+    } else {
+        FrameLayout(context)
+    }
 
     override fun getView(): View = view
 

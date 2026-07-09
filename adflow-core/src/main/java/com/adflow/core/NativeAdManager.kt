@@ -13,5 +13,11 @@ interface NativeAdManager {
      * [onResult] báo thành công - hàm này không tự rebind View đang hiển thị. */
     fun reload(onResult: (AdLoadResult) -> Unit = {})
 
-    fun createView(context: Context, renderer: NativeAdRenderer): View
+    /**
+     * Luôn an toàn để gọi, không cần check [isReady] trước - nếu ad chưa ready hoặc
+     * [PlacementConfig.showRule] đang từ chối, trả về 1 `View` rỗng (không hiển thị gì, không
+     * chiếm layout) và báo lý do qua [onShowBlocked], giống hệt cách `show()` của full-screen ad
+     * báo qua [ShowCallback.onShowBlocked] thay vì throw.
+     */
+    fun createView(context: Context, renderer: NativeAdRenderer, onShowBlocked: (BlockReason) -> Unit = {}): View
 }

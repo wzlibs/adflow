@@ -1,6 +1,10 @@
 package com.adflow.adflow_flutter.platformview
 
 import com.adflow.adflow_flutter.PlacementRegistry
+import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
+import com.adflow.adflow_flutter.generated.PShowEventKind
+import com.adflow.adflow_flutter.toPigeon
+import com.adflow.core.BlockReason
 
 /**
  * Trả về manager thật cho [placementId] nếu placement đó đang enabled, ngược lại `null` - factory
@@ -12,3 +16,12 @@ import com.adflow.adflow_flutter.PlacementRegistry
  */
 internal fun <T> enabledManager(registry: PlacementRegistry, placementId: String?, managers: Map<String, T>): T? =
     placementId?.takeIf { registry.isEnabled(it) }?.let { managers[it] }
+
+/**
+ * Forward lý do bị chặn của `createView()`/`getView()` (Native/Banner) sang Dart qua cùng kênh
+ * [AdFlowFlutterApi.onShowEvent] mà Interstitial/AppOpen/Rewarded đã dùng cho `show()` (xem
+ * `callbacks/ShowCallbackBridge.kt`) - tái dùng [PShowEventKind.SHOW_BLOCKED] và
+ * [BlockReason.toPigeon] sẵn có, không cần thêm event kind mới.
+ */
+internal fun showBlockedReporter(placementId: String, flutterApi: AdFlowFlutterApi): (BlockReason) -> Unit =
+    { reason -> flutterApi.onShowEvent(placementId, PShowEventKind.SHOW_BLOCKED, null, reason.toPigeon(), null) {} }

@@ -1,14 +1,15 @@
 package com.adflow.admob.banner
 
 import android.content.Context
+import android.view.View
 import com.adflow.core.AdLoadResult
 import com.adflow.core.AdRule
+import com.adflow.core.BlockReason
 import com.adflow.core.PlacementConfig
 import com.adflow.core.RetryPolicy
 import com.google.android.gms.ads.AdView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -76,12 +77,43 @@ class AdMobBannerAdManagerTest {
     }
 
     @Test
-    fun `getView() throws when showRule rejects, even though the ad is ready`() {
+    fun `getView() reports RULE_REJECTED and returns a GONE view instead of throwing when showRule rejects`() {
         val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"), showRule = AdRule { false })
         val manager = MockBannerAdManager(context, config, mutableListOf(mock<AdView>()))
         manager.load {}
-
         assertTrue(manager.isReady())
-        assertThrows(IllegalStateException::class.java) { manager.getView(context) }
+
+        var blockedReason: BlockReason? = null
+        val view = manager.getView(context) { blockedReason = it }
+
+        assertEquals(BlockReason.RULE_REJECTED, blockedReason)
+        assertEquals(View.GONE, view.visibility)
+    }
+
+    @Test
+    fun `getView() reports NOT_READY and returns a GONE view instead of throwing when no ad is cached`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val manager = MockBannerAdManager(context, config, mutableListOf())
+        assertFalse(manager.isReady())
+
+        var blockedReason: BlockReason? = null
+        val view = manager.getView(context) { blockedReason = it }
+
+        assertEquals(BlockReason.NOT_READY, blockedReason)
+        assertEquals(View.GONE, view.visibility)
+    }
+
+    @Test
+    fun `getView() returns the cached AdView and never invokes onShowBlocked when ready and showRule allows`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"))
+        val ad = mock<AdView>()
+        val manager = MockBannerAdManager(context, config, mutableListOf(ad))
+        manager.load {}
+
+        var blockedReason: BlockReason? = null
+        val view = manager.getView(context) { blockedReason = it }
+
+        assertEquals(null, blockedReason)
+        assertEquals(ad, view)
     }
 }

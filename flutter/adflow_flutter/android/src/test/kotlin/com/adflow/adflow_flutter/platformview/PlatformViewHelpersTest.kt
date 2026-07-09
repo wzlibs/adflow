@@ -3,10 +3,17 @@ package com.adflow.adflow_flutter.platformview
 import android.app.Application
 import android.content.Context
 import com.adflow.adflow_flutter.PlacementRegistry
+import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
+import com.adflow.adflow_flutter.generated.PBlockReason
+import com.adflow.adflow_flutter.generated.PShowEventKind
+import com.adflow.core.BlockReason
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class PlatformViewHelpersTest {
@@ -41,5 +48,21 @@ class PlatformViewHelpersTest {
 
         assertNull(enabledManager(registry, null, managers))
         assertNull(enabledManager(registry, "unregistered", managers))
+    }
+
+    @Test
+    fun `showBlockedReporter forwards the block reason as a SHOW_BLOCKED onShowEvent`() {
+        val flutterApi = mock<AdFlowFlutterApi>()
+
+        showBlockedReporter("p1", flutterApi).invoke(BlockReason.RULE_REJECTED)
+
+        verify(flutterApi).onShowEvent(
+            eq("p1"),
+            eq(PShowEventKind.SHOW_BLOCKED),
+            eq(null),
+            eq(PBlockReason.RULE_REJECTED),
+            eq(null),
+            any(),
+        )
     }
 }

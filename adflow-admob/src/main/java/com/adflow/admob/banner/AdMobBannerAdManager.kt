@@ -3,8 +3,11 @@ package com.adflow.admob.banner
 import android.content.Context
 import android.view.View
 import com.adflow.admob.dispatchRevenue
+import com.adflow.core.AdFlowCore
+import com.adflow.core.AdFlowEvent
 import com.adflow.core.AdType
 import com.adflow.core.BannerAdManager
+import com.adflow.core.BlockReason
 import com.adflow.core.PlacementConfig
 import com.adflow.core.SimpleCachedAdLoaderBase
 import com.google.android.gms.ads.AdListener
@@ -40,9 +43,18 @@ open class AdMobBannerAdManager(
         view.loadAd(AdRequest.Builder().build())
     }
 
-    override fun getView(context: Context): View {
-        val view = cachedAd ?: throw IllegalStateException("Banner for '${config.placementId}' has not loaded yet")
-        requireShowAllowed()
-        return view
+    override fun getView(context: Context, onShowBlocked: (BlockReason) -> Unit): View {
+        val ad = cachedAd
+        if (ad == null) {
+            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "not ready")
+            onShowBlocked(BlockReason.NOT_READY)
+            return View(context).apply { visibility = View.GONE }
+        }
+        if (!isShowAllowed()) {
+            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "showRule rejected")
+            onShowBlocked(BlockReason.RULE_REJECTED)
+            return View(context).apply { visibility = View.GONE }
+        }
+        return ad
     }
 }
