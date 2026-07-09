@@ -5,10 +5,12 @@ import android.app.Application
 import android.content.Context
 import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
 import com.adflow.adflow_flutter.generated.PBlockReason
+import com.adflow.adflow_flutter.generated.PLoadResult
 import com.adflow.adflow_flutter.generated.PShowEventKind
 import com.adflow.core.AdLoadResult
 import com.adflow.core.InterstitialAdManager
 import com.adflow.core.ShowCallback
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -22,10 +24,13 @@ import org.mockito.kotlin.whenever
 private class FakeInterstitialAdManager : InterstitialAdManager {
     var shownWith: Activity? = null
     var shownCallback: ShowCallback? = null
+    var loadCalled = false
 
     override fun isReady(): Boolean = true
 
-    override fun load(onResult: (AdLoadResult) -> Unit) {}
+    override fun load(onResult: (AdLoadResult) -> Unit) {
+        loadCalled = true
+    }
 
     override fun show(activity: Activity, callback: ShowCallback) {
         shownWith = activity
@@ -129,6 +134,22 @@ class InterstitialAdHostApiImplTest {
             eq(null),
             any(),
         )
+    }
+
+    @Test
+    fun `load() is blocked and never touches the manager when the placement is disabled`() {
+        val registry = newRegistry()
+        val manager = FakeInterstitialAdManager()
+        registry.interstitials["p1"] = manager
+        registry.setEnabled("p1", false)
+        val flutterApi = mock<AdFlowFlutterApi>()
+        val impl = InterstitialAdHostApiImpl(registry, flutterApi)
+        var result: PLoadResult? = null
+
+        impl.load("p1") { result = it.getOrThrow() }
+
+        assertFalse(manager.loadCalled)
+        assertFalse(result?.success ?: true)
     }
 
     @Test

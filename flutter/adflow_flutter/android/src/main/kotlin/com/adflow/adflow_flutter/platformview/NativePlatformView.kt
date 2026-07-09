@@ -28,7 +28,7 @@ class NativePlatformViewFactory(
         val map = args as? Map<*, *>
         val placementId = map?.get("placementId") as? String
         val rendererId = map?.get("rendererId") as? String
-        val manager = placementId?.let { registry.natives[it] }
+        val manager = enabledManager(registry, placementId, registry.natives)
         return NativePlatformView(context, manager, resolveRenderer(rendererId, renderers))
     }
 }

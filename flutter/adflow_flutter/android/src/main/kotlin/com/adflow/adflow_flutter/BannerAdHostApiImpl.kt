@@ -18,11 +18,9 @@ class BannerAdHostApiImpl(private val registry: PlacementRegistry) : BannerAdHos
 
     override fun load(placementId: String, callback: (Result<PLoadResult>) -> Unit) {
         val manager = registry.banners[placementId]
-        if (manager == null) {
-            callback(Result.success(PLoadResult(success = false, error = null)))
-            return
+        loadGated(registry, placementId, manager != null, callback) {
+            manager!!.load { result -> callback(Result.success(result.toPigeon())) }
         }
-        manager.load { result -> callback(Result.success(result.toPigeon())) }
     }
 
     override fun setEnabled(placementId: String, enabled: Boolean) {

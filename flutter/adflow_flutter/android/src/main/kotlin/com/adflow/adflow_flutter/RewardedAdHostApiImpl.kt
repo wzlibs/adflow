@@ -21,11 +21,9 @@ class RewardedAdHostApiImpl(
 
     override fun load(placementId: String, callback: (Result<PLoadResult>) -> Unit) {
         val manager = registry.rewardeds[placementId]
-        if (manager == null) {
-            callback(Result.success(PLoadResult(success = false, error = null)))
-            return
+        loadGated(registry, placementId, manager != null, callback) {
+            manager!!.load { result -> callback(Result.success(result.toPigeon())) }
         }
-        manager.load { result -> callback(Result.success(result.toPigeon())) }
     }
 
     override fun show(placementId: String) {

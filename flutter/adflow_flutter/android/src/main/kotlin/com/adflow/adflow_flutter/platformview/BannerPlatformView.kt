@@ -20,7 +20,7 @@ class BannerPlatformViewFactory(private val registry: PlacementRegistry) :
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
         val placementId = (args as? Map<*, *>)?.get("placementId") as? String
-        val manager = placementId?.let { registry.banners[it] }
+        val manager = enabledManager(registry, placementId, registry.banners)
         return BannerPlatformView(context, manager)
     }
 }

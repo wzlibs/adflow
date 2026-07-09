@@ -3,6 +3,7 @@ package com.adflow.adflow_flutter
 import android.app.Activity
 import android.util.Log
 import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
+import com.adflow.adflow_flutter.generated.PLoadResult
 import com.adflow.adflow_flutter.generated.PShowEventKind
 import com.adflow.core.BlockReason
 
@@ -40,4 +41,25 @@ internal inline fun showGated(
         return
     }
     show(activity)
+}
+
+/**
+ * Gate dùng chung cho load()/reload() của mọi loại ad: chặn ngay, không chạm tới manager, nếu
+ * không có manager (thường do sai placementId) hoặc placement đang bị tắt qua setEnabled(false).
+ * Trước đây setEnabled(false) chỉ chặn show() - load() vẫn âm thầm chạy nền, tốn ad request vô ích
+ * khi app đã tắt hẳn 1 placement (vd user lên VIP). Cùng 1 gate với [showGated] để setEnabled() giữ
+ * đúng lời hứa "tắt hẳn" cho mọi loại ad, kể cả Banner/Native (vốn không có show() riêng).
+ */
+internal inline fun loadGated(
+    registry: PlacementRegistry,
+    placementId: String,
+    hasManager: Boolean,
+    callback: (Result<PLoadResult>) -> Unit,
+    load: () -> Unit,
+) {
+    if (!hasManager || !registry.isEnabled(placementId)) {
+        callback(Result.success(PLoadResult(success = false, error = null)))
+        return
+    }
+    load()
 }

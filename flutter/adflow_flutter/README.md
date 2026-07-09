@@ -106,11 +106,13 @@ class AdPlacements {
 }
 ```
 
-`PlacementConfig` có `placementId`, `adUnitIds` (waterfall), `enabled`, `preloadEnabled`, `retryPolicy`, `expiryMs`. Plugin không hỗ trợ rule gating dạng callback tùy biến (kiểu `AdRule` đồng bộ) vì việc đó cần round-trip qua Platform Channel mỗi lần load/show, không phù hợp cho 1 điều kiện được gọi thường xuyên. Để tắt/bật ads có điều kiện (vd user premium), gọi `setEnabled(bool)` trên từng đối tượng ad:
+`PlacementConfig` có `placementId`, `adUnitIds` (waterfall), `enabled`, `preloadEnabled`, `retryPolicy`, `expiryMs`. Plugin không hỗ trợ rule gating dạng callback tùy biến (kiểu `AdRule`/`loadRule`/`showRule` phía native đồng bộ) vì việc đó cần round-trip qua Platform Channel mỗi lần load/show, không phù hợp cho 1 điều kiện được gọi thường xuyên. Để tắt/bật ads có điều kiện (vd user mua VIP), gọi `setEnabled(bool)` trên từng đối tượng ad:
 
 ```dart
-await placements.splashInterstitial.setEnabled(!isPremium);
+await placements.splashInterstitial.setEnabled(!isVip);
 ```
+
+`setEnabled(false)` chặn **cả `load()` lẫn hiển thị**, cho mọi loại ad - không chỉ `show()` của Interstitial/App Open/Rewarded, mà cả việc `load()` fetch ad mới (tránh tốn ad request ngầm vô ích khi đã tắt hẳn) và việc `AdFlowBannerAdView`/`AdFlowNativeAdView` render ad (kể cả khi build widget mà quên tự kiểm tra trạng thái VIP ở Dart). Trạng thái này chỉ tồn tại trong bộ nhớ (không tự lưu lại) - app tự lưu trạng thái VIP và gọi lại `setEnabled(false)` mỗi lần khởi động app, trước khi `loadAll()`.
 
 ## 5. GDPR/quyền riêng tư (Consent)
 

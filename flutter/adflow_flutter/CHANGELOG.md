@@ -1,3 +1,12 @@
+## 0.4.2
+
+* Fix: `setEnabled(false)` only blocked `show()` for Interstitial/App Open/Rewarded, and had no
+  effect at all on Banner/Native - `load()` kept fetching ads in the background for every ad type,
+  and Banner/Native platform views kept rendering the cached ad regardless of `setEnabled()`. Now
+  `setEnabled(false)` consistently blocks both `load()` and rendering for every ad type, so a fully
+  "disabled" placement (e.g. a VIP/premium user) stops making ad requests entirely instead of just
+  hiding the show/UI surface. No API change - same `setEnabled(bool)` call.
+
 ## 0.4.1
 
 * Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.6.0`, which renders the native
