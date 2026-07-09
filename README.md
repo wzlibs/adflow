@@ -185,6 +185,8 @@ class MyAdPlacements(context: Context) {
         PlacementConfig(
             placementId = "home_banner",
             adUnitIds = listOf("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy"),
+            loadRule = notPremium,
+            showRule = notPremium,
         ),
     )
 
@@ -192,6 +194,8 @@ class MyAdPlacements(context: Context) {
         PlacementConfig(
             placementId = "home_native",
             adUnitIds = listOf("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy"),
+            loadRule = notPremium,
+            showRule = notPremium,
         ),
     )
 }
@@ -201,7 +205,7 @@ Các field hay dùng của `PlacementConfig`:
 
 - `placementId` - định danh duy nhất cho placement này, dùng trong log và trong `AdRule`.
 - `adUnitIds` - danh sách ad unit ID theo thứ tự waterfall (thử ID đầu, hết fill thì rơi xuống ID kế tiếp).
-- `loadRule` / `showRule` - kiểu `AdRule { isAllowed(placementId): Boolean }`, dùng để tắt load/show có điều kiện (ví dụ user đã mua gói premium thì trả về `false`).
+- `loadRule` / `showRule` - kiểu `AdRule { isAllowed(placementId): Boolean }`, dùng để tắt load/show có điều kiện (ví dụ user đã mua gói premium thì trả về `false`). Với Interstitial/App Open/Rewarded, `showRule` từ chối thì `show()` gọi `onShowBlocked(BlockReason.RULE_REJECTED)` qua callback. Với Native/Banner - vốn không có `show(callback)` riêng, chỉ có `createView()`/`getView()` trả thẳng `View` - `showRule` từ chối làm `createView()`/`getView()` **throw `IllegalStateException`** (cùng cách "not ready" đã throw sẵn) thay vì trả `View`; tự kiểm tra điều kiện tương đương (hoặc gọi trong `try/catch`) trước khi build `View` nếu dùng `showRule` cho Native/Banner.
 - `retryPolicy` và `expiryMs` có giá trị mặc định hợp lý (retry backoff khi load lỗi, ad hết hạn sau 4 giờ) - chỉ cần chỉnh khi có yêu cầu đặc biệt.
 
 ## 6. Hiển thị từng loại ad

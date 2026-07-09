@@ -51,6 +51,7 @@ open class AdMobNativeAdManager(
     override fun createView(context: Context, renderer: NativeAdRenderer): View {
         dropIfExpired()
         val ad = cachedAd ?: throw IllegalStateException("Native ad for '${config.placementId}' has not loaded yet")
+        requireShowAllowed()
         val view = renderer.createView(context)
         val assets = NativeAdAssets(
             headline = ad.headline.orEmpty(),

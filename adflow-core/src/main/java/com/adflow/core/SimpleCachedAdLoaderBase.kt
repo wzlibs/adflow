@@ -93,4 +93,18 @@ abstract class SimpleCachedAdLoaderBase<TAd : Any>(
             if (previous != null) onDrop(previous)
         }
     }
+
+    /**
+     * Throw nếu [PlacementConfig.showRule] từ chối hiển thị placement này ngay lúc gọi. Native/
+     * Banner không có contract `show(callback)` riêng như full-screen (`createView()`/`getView()`
+     * trả thẳng `View`, không có callback để báo blocked) - "fail loudly" bằng exception, cùng style
+     * với "not ready" đã throw sẵn ở `createView()`/`getView()`, thay vì âm thầm bỏ qua `showRule`
+     * như trước (bug: `showRule` set trên Native/Banner trước đây không có tác dụng gì).
+     */
+    protected fun requireShowAllowed() {
+        if (config.showRule?.isAllowed(config.placementId) == false) {
+            AdFlowCore.logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, "showRule rejected")
+            throw IllegalStateException("Placement '${config.placementId}' is blocked by showRule")
+        }
+    }
 }

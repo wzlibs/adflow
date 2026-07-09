@@ -2,11 +2,13 @@ package com.adflow.admob.nativead
 
 import android.content.Context
 import com.adflow.core.AdLoadResult
+import com.adflow.core.AdRule
 import com.adflow.core.PlacementConfig
 import com.adflow.core.RetryPolicy
 import com.google.android.gms.ads.nativead.NativeAd
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -87,5 +89,17 @@ class AdMobNativeAdManagerTest {
 
         verify(ad1).destroy()
         verify(ad2, never()).destroy()
+    }
+
+    @Test
+    fun `createView() throws when showRule rejects, even though the ad is ready`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"), showRule = AdRule { false })
+        val manager = MockNativeAdManager(context, config, mutableListOf(mock<NativeAd>()))
+        manager.load {}
+
+        assertTrue(manager.isReady())
+        assertThrows(IllegalStateException::class.java) {
+            manager.createView(context, DefaultMediumNativeAdRenderer())
+        }
     }
 }

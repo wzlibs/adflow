@@ -2,14 +2,17 @@ package com.adflow.admob.banner
 
 import android.content.Context
 import com.adflow.core.AdLoadResult
+import com.adflow.core.AdRule
 import com.adflow.core.PlacementConfig
 import com.adflow.core.RetryPolicy
 import com.google.android.gms.ads.AdView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
@@ -60,5 +63,25 @@ class AdMobBannerAdManagerTest {
         assertEquals(4, manager.attemptCount)
         assertTrue(result is AdLoadResult.Failure)
         assertFalse(manager.isReady())
+    }
+
+    private class MockBannerAdManager(
+        context: Context,
+        config: PlacementConfig,
+        private val ads: MutableList<AdView>,
+    ) : AdMobBannerAdManager(context, config) {
+        override fun requestAd(adUnitId: String, onResult: (Result<AdView>) -> Unit) {
+            onResult(Result.success(ads.removeAt(0)))
+        }
+    }
+
+    @Test
+    fun `getView() throws when showRule rejects, even though the ad is ready`() {
+        val config = PlacementConfig(placementId = "p1", adUnitIds = listOf("A"), showRule = AdRule { false })
+        val manager = MockBannerAdManager(context, config, mutableListOf(mock<AdView>()))
+        manager.load {}
+
+        assertTrue(manager.isReady())
+        assertThrows(IllegalStateException::class.java) { manager.getView(context) }
     }
 }

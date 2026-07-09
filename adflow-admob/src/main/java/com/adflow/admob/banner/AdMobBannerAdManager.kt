@@ -40,6 +40,9 @@ open class AdMobBannerAdManager(
         view.loadAd(AdRequest.Builder().build())
     }
 
-    override fun getView(context: Context): View =
-        cachedAd ?: throw IllegalStateException("Banner for '${config.placementId}' has not loaded yet")
+    override fun getView(context: Context): View {
+        val view = cachedAd ?: throw IllegalStateException("Banner for '${config.placementId}' has not loaded yet")
+        requireShowAllowed()
+        return view
+    }
 }
