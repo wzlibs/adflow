@@ -45,6 +45,23 @@ class AdPlacements {
             placementId: 'home_native',
             adUnitIds: ['ca-app-pub-3940256099942544/2247696110'],
           ),
+        ),
+        // Placement thứ 2, dùng renderer tùy biến 'compactCard' (đăng ký ở MainActivity.kt) - minh
+        // hoạ nhiều native ad placement trong cùng 1 app, mỗi placement 1 UI riêng.
+        feedNative = AdFlowNativeAd(
+          const PlacementConfig(
+            placementId: 'feed_native',
+            adUnitIds: ['ca-app-pub-3940256099942544/2247696110'],
+          ),
+        ),
+        // Placement thứ 3, dùng renderer có sẵn 'small' (DefaultSmallNativeAdRenderer từ
+        // adflow-admob, đăng ký ở MainActivity.kt) - minh hoạ rendererId không nhất thiết phải là
+        // renderer tự viết, dùng lại renderer có sẵn trong lib cũng qua đúng 1 cơ chế đó.
+        smallNative = AdFlowNativeAd(
+          const PlacementConfig(
+            placementId: 'small_native',
+            adUnitIds: ['ca-app-pub-3940256099942544/2247696110'],
+          ),
         );
 
   final AdFlowInterstitialAd splashInterstitial;
@@ -53,6 +70,8 @@ class AdPlacements {
   final AdFlowRewardedAd rewarded;
   final AdFlowBannerAd banner;
   final AdFlowNativeAd native;
+  final AdFlowNativeAd feedNative;
+  final AdFlowNativeAd smallNative;
 
   Future<void> loadAll() => Future.wait([
         splashInterstitial.load(),
@@ -61,6 +80,8 @@ class AdPlacements {
         rewarded.load(),
         banner.load(),
         native.load(),
+        feedNative.load(),
+        smallNative.load(),
       ]);
 
   /// Bật/tắt ads bị ảnh hưởng bởi trạng thái premium - thay cho AdRule (không bridge qua channel
@@ -74,6 +95,8 @@ class AdPlacements {
       appOpen.setEnabled(enabled),
       banner.setEnabled(enabled),
       native.setEnabled(enabled),
+      feedNative.setEnabled(enabled),
+      smallNative.setEnabled(enabled),
     ]);
   }
 }

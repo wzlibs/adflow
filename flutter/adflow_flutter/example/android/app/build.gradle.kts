@@ -43,3 +43,11 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Cần trực tiếp vì CompactCardNativeAdRenderer.kt (ví dụ custom NativeAdRenderer) dùng thẳng
+    // NativeAdView của AdMob SDK - adflow-admob khai báo play-services-ads là "implementation" nên
+    // không tự lộ ra transitive cho app. Version khớp gradle/libs.versions.toml (playServicesAds)
+    // ở repo gốc.
+    implementation("com.google.android.gms:play-services-ads:25.4.0")
+}

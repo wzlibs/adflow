@@ -20,6 +20,8 @@ class _HomeScreenState extends State<HomeScreen> {
   PRewardItem? _lastReward;
   bool _bannerReady = false;
   bool _nativeReady = false;
+  bool _feedNativeReady = false;
+  bool _smallNativeReady = false;
   bool _privacyOptionsRequired = false;
   // Bump chỉ khi reload() thành công, dùng làm Key của AdFlowNativeAdView bên dưới để ép Flutter
   // huỷ-tạo lại platform view đó, đọc đúng native ad mới nhất vừa swap xong.
@@ -30,6 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _pollBannerReady();
     _pollNativeReady();
+    _pollFeedNativeReady();
+    _pollSmallNativeReady();
     _loadPrivacyOptionsRequirement();
   }
 
@@ -57,6 +61,30 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       if (ready) {
         setState(() => _nativeReady = true);
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
+  Future<void> _pollFeedNativeReady() async {
+    while (mounted && !_feedNativeReady) {
+      final ready = await widget.placements.feedNative.isReady;
+      if (!mounted) return;
+      if (ready) {
+        setState(() => _feedNativeReady = true);
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
+  Future<void> _pollSmallNativeReady() async {
+    while (mounted && !_smallNativeReady) {
+      final ready = await widget.placements.smallNative.isReady;
+      if (!mounted) return;
+      if (ready) {
+        setState(() => _smallNativeReady = true);
         return;
       }
       await Future.delayed(const Duration(milliseconds: 500));
@@ -125,6 +153,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   ad: widget.placements.native,
                 ),
               ],
+              // Placement Native thứ 2, render bằng renderer tùy biến 'compactCard' (đăng ký ở
+              // MainActivity.kt) - minh hoạ nhiều native ad placement cùng lúc, mỗi placement 1 UI
+              // riêng (khác hẳn layout dọc mặc định ở trên).
+              if (_feedNativeReady)
+                AdFlowNativeAdView(
+                  ad: widget.placements.feedNative,
+                  rendererId: 'compactCard',
+                  height: 100,
+                ),
+              // Placement Native thứ 3, render bằng renderer có sẵn 'small'
+              // (DefaultSmallNativeAdRenderer, đăng ký ở MainActivity.kt) - minh hoạ rendererId
+              // dùng lại renderer có sẵn trong lib chứ không nhất thiết phải tự viết Kotlin mới.
+              if (_smallNativeReady)
+                AdFlowNativeAdView(
+                  ad: widget.placements.smallNative,
+                  rendererId: 'small',
+                  height: 80,
+                ),
             ],
           ),
         ),

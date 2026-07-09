@@ -1,3 +1,13 @@
+## 0.4.0
+
+* Custom native ad UI: register your own Kotlin `NativeAdRenderer` via
+  `AdflowFlutterPlugin.registerNativeAdRenderer(flutterEngine, rendererId, renderer)` (typically in
+  `MainActivity.configureFlutterEngine()`), then select it per-widget with
+  `AdFlowNativeAdView(rendererId: 'id')`. `rendererId` is independent of `placementId`, so a single
+  app can register several renderers and use different ones across different native ad placements.
+  Falls back to `DefaultMediumNativeAdRenderer` (with a Logcat warning) if `rendererId` doesn't
+  match a registered renderer, instead of crashing. See README "Hiển thị từng loại ad" → Native.
+
 ## 0.3.2
 
 * Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.5.0`, which makes the default
