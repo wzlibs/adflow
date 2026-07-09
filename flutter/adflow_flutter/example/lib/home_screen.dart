@@ -169,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 AdFlowNativeAdView(
                   ad: widget.placements.smallNative,
                   rendererId: 'small',
-                  height: 80,
+                  height: 120,
                 ),
             ],
           ),

@@ -1,3 +1,9 @@
+## 0.4.1
+
+* Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.6.0`, which renders the native
+  ad icon in `DefaultSmallNativeAdRenderer` (previously headline + body only, no image). No Dart
+  API change.
+
 ## 0.4.0
 
 * Custom native ad UI: register your own Kotlin `NativeAdRenderer` via
