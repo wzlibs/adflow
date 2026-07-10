@@ -13,15 +13,15 @@ import com.adflow.adflow_flutter.generated.PRetryPolicy
 import com.adflow.adflow_flutter.generated.PShowIntervalConfig
 import com.adflow.core.AdFlowError
 import com.adflow.core.AdLoadResult
-import com.adflow.core.AdRevenueEvent
+import com.adflow.core.revenue.AdRevenueEvent
 import com.adflow.core.AdType
 import com.adflow.core.BlockReason
-import com.adflow.core.ConsentStatus
-import com.adflow.core.PlacementConfig
-import com.adflow.core.PrivacyOptionsRequirement
-import com.adflow.core.RetryPolicy
-import com.adflow.core.RewardItem
-import com.adflow.core.ShowIntervalConfig
+import com.adflow.core.consent.ConsentStatus
+import com.adflow.core.config.PlacementConfig
+import com.adflow.core.consent.PrivacyOptionsRequirement
+import com.adflow.core.config.RetryPolicy
+import com.adflow.core.rewarded.RewardItem
+import com.adflow.core.config.ShowIntervalConfig
 
 /**
  * Chuyển đổi 2 chiều giữa kiểu Pigeon-sinh (P-prefix) và kiểu thật của adflow-core. Enum

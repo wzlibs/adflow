@@ -6,9 +6,9 @@ import android.os.Bundle
 import com.adflow.core.AdFlowCore
 import com.adflow.core.AdLoadResult
 import com.adflow.core.BlockReason
-import com.adflow.core.PlacementConfig
-import com.adflow.core.RetryPolicy
-import com.adflow.core.RewardedAdCallback
+import com.adflow.core.config.PlacementConfig
+import com.adflow.core.config.RetryPolicy
+import com.adflow.core.rewarded.RewardedAdCallback
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.OnPaidEventListener
 import com.google.android.gms.ads.OnUserEarnedRewardListener

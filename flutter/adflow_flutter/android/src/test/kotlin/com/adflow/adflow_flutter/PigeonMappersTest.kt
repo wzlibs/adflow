@@ -5,12 +5,12 @@ import com.adflow.adflow_flutter.generated.PRetryPolicy
 import com.adflow.adflow_flutter.generated.PShowIntervalConfig
 import com.adflow.core.AdFlowError
 import com.adflow.core.AdLoadResult
-import com.adflow.core.AdRevenueEvent
+import com.adflow.core.revenue.AdRevenueEvent
 import com.adflow.core.AdType
 import com.adflow.core.BlockReason
-import com.adflow.core.ConsentStatus
-import com.adflow.core.PrivacyOptionsRequirement
-import com.adflow.core.RewardItem
+import com.adflow.core.consent.ConsentStatus
+import com.adflow.core.consent.PrivacyOptionsRequirement
+import com.adflow.core.rewarded.RewardItem
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test

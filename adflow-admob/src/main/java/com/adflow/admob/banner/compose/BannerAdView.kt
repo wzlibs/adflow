@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import com.adflow.core.BannerAdManager
+import com.adflow.core.banner.BannerAdManager
 import com.adflow.core.BlockReason
 
 @Composable

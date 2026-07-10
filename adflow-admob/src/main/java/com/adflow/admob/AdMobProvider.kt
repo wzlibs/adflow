@@ -8,13 +8,13 @@ import com.adflow.admob.fullscreen.AdMobInterstitialAdManager
 import com.adflow.admob.fullscreen.AdMobRewardedAdManager
 import com.adflow.admob.nativead.AdMobNativeAdManager
 import com.adflow.core.AdNetworkProvider
-import com.adflow.core.AppOpenAdManager
-import com.adflow.core.BannerAdManager
-import com.adflow.core.ConsentManager
-import com.adflow.core.InterstitialAdManager
-import com.adflow.core.NativeAdManager
-import com.adflow.core.PlacementConfig
-import com.adflow.core.RewardedAdManager
+import com.adflow.core.fullscreen.AppOpenAdManager
+import com.adflow.core.banner.BannerAdManager
+import com.adflow.core.consent.ConsentManager
+import com.adflow.core.fullscreen.InterstitialAdManager
+import com.adflow.core.nativead.NativeAdManager
+import com.adflow.core.config.PlacementConfig
+import com.adflow.core.rewarded.RewardedAdManager
 import com.google.android.gms.ads.MobileAds
 
 class AdMobProvider(context: Context) : AdNetworkProvider {

@@ -7,8 +7,8 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.adflow.core.NativeAdAssets
-import com.adflow.core.NativeAdRenderer
+import com.adflow.core.nativead.NativeAdAssets
+import com.adflow.core.nativead.NativeAdRenderer
 import com.google.android.gms.ads.nativead.NativeAdView
 
 private const val ICON_SIZE_DP = 40

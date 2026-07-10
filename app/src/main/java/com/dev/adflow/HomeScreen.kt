@@ -24,10 +24,10 @@ import androidx.compose.ui.unit.dp
 import com.adflow.admob.banner.compose.BannerAdView
 import com.adflow.admob.nativead.compose.NativeAdView
 import com.adflow.core.AdLoadResult
-import com.adflow.core.PrivacyOptionsRequirement
-import com.adflow.core.RewardItem
-import com.adflow.core.RewardedAdCallback
-import com.adflow.core.ShowCallback
+import com.adflow.core.consent.PrivacyOptionsRequirement
+import com.adflow.core.rewarded.RewardItem
+import com.adflow.core.rewarded.RewardedAdCallback
+import com.adflow.core.fullscreen.ShowCallback
 import kotlinx.coroutines.delay
 
 private const val TAG = "AdFlowDemo"

@@ -4,9 +4,9 @@ import android.app.Activity
 import android.content.Context
 import com.adflow.core.AdFlowCore
 import com.adflow.core.AdFlowError
-import com.adflow.core.ConsentManager
-import com.adflow.core.ConsentStatus
-import com.adflow.core.PrivacyOptionsRequirement
+import com.adflow.core.consent.ConsentManager
+import com.adflow.core.consent.ConsentStatus
+import com.adflow.core.consent.PrivacyOptionsRequirement
 import com.google.android.ump.ConsentDebugSettings
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters

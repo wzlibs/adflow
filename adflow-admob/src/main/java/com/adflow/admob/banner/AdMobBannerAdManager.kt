@@ -4,12 +4,12 @@ import android.content.Context
 import android.view.View
 import com.adflow.admob.dispatchRevenue
 import com.adflow.core.AdFlowCore
-import com.adflow.core.AdFlowEvent
+import com.adflow.core.logging.AdFlowEvent
 import com.adflow.core.AdType
-import com.adflow.core.BannerAdManager
+import com.adflow.core.banner.BannerAdManager
 import com.adflow.core.BlockReason
-import com.adflow.core.PlacementConfig
-import com.adflow.core.SimpleCachedAdLoaderBase
+import com.adflow.core.config.PlacementConfig
+import com.adflow.core.engine.SimpleCachedAdLoaderBase
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize

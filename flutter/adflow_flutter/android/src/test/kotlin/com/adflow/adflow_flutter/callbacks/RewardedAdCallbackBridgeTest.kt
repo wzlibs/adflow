@@ -3,7 +3,7 @@ package com.adflow.adflow_flutter.callbacks
 import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
 import com.adflow.adflow_flutter.generated.PRewardItem
 import com.adflow.adflow_flutter.generated.PShowEventKind
-import com.adflow.core.RewardItem
+import com.adflow.core.rewarded.RewardItem
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat

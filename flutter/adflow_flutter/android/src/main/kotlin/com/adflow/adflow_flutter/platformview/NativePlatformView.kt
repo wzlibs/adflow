@@ -7,8 +7,8 @@ import android.widget.FrameLayout
 import com.adflow.admob.nativead.DefaultMediumNativeAdRenderer
 import com.adflow.adflow_flutter.PlacementRegistry
 import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
-import com.adflow.core.NativeAdManager
-import com.adflow.core.NativeAdRenderer
+import com.adflow.core.nativead.NativeAdManager
+import com.adflow.core.nativead.NativeAdRenderer
 import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory

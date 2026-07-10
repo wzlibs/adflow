@@ -11,10 +11,10 @@ import com.adflow.adflow_flutter.generated.PPrivacyOptionsRequirement
 import com.adflow.adflow_flutter.generated.PShowIntervalConfig
 import com.adflow.core.AdFlowCore
 import com.adflow.core.AdFlowError
-import com.adflow.core.AdFlowEvent
-import com.adflow.core.AdFlowLogger
+import com.adflow.core.logging.AdFlowEvent
+import com.adflow.core.logging.AdFlowLogger
 import com.adflow.core.AdType
-import com.adflow.core.LogcatAdFlowLogger
+import com.adflow.core.logging.LogcatAdFlowLogger
 
 /** Không log gì cả - dùng khi Dart gọi configure(useLogcatLogger: false). Không có cơ chế bridge
  * 1 AdFlowLogger tùy biến từ Dart sang Kotlin (mỗi lệnh log sẽ cần round-trip channel, không đáng

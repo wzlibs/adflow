@@ -6,8 +6,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.adflow.admob.nativead.DefaultMediumNativeAdRenderer
 import com.adflow.core.BlockReason
-import com.adflow.core.NativeAdManager
-import com.adflow.core.NativeAdRenderer
+import com.adflow.core.nativead.NativeAdManager
+import com.adflow.core.nativead.NativeAdRenderer
 
 @Composable
 fun NativeAdView(

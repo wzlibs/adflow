@@ -2,8 +2,8 @@ package com.dev.adflow
 
 import android.app.Application
 import com.adflow.core.AdFlowCore
-import com.adflow.core.AppOpenAdController
-import com.adflow.core.LogcatAdFlowLogger
+import com.adflow.core.fullscreen.AppOpenAdController
+import com.adflow.core.logging.LogcatAdFlowLogger
 
 class AdFlowDemoApp : Application() {
 

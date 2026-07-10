@@ -1,0 +1,6 @@
+package com.adflow.core.logging
+
+enum class AdFlowEvent {
+    LOADING, LOADED, LOAD_FAILED, RETRYING, WATERFALL_NEXT,
+    SHOWN, SHOW_BLOCKED, SHOW_FAILED, NO_FILL,
+}

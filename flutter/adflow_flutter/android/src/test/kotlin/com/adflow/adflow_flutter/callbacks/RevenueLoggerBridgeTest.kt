@@ -2,7 +2,7 @@ package com.adflow.adflow_flutter.callbacks
 
 import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
 import com.adflow.adflow_flutter.generated.PAdRevenueEvent
-import com.adflow.core.AdRevenueEvent
+import com.adflow.core.revenue.AdRevenueEvent
 import com.adflow.core.AdType
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.argThat

@@ -1,7 +1,7 @@
 package com.adflow.admob.fullscreen
 
 import com.adflow.core.AdFlowError
-import com.adflow.core.ShowCallback
+import com.adflow.core.fullscreen.ShowCallback
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.FullScreenContentCallback
 

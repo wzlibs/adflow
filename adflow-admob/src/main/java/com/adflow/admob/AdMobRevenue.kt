@@ -1,7 +1,7 @@
 package com.adflow.admob
 
 import com.adflow.core.AdFlowCore
-import com.adflow.core.AdRevenueEvent
+import com.adflow.core.revenue.AdRevenueEvent
 import com.adflow.core.AdType
 import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.ResponseInfo

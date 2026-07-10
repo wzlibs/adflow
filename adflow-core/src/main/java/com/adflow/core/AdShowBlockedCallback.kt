@@ -1,5 +1,8 @@
 package com.adflow.core
 
+import com.adflow.core.engine.CachedAdLoaderBase
+import com.adflow.core.fullscreen.ShowCallback
+import com.adflow.core.rewarded.RewardedAdCallback
 /**
  * Tín hiệu kết quả show() duy nhất được chia sẻ bởi callback show() của mọi loại ad
  * ([ShowCallback], [RewardedAdCallback]), dù phần còn lại trong contract của chúng khác nhau thế

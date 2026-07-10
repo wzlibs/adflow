@@ -5,12 +5,12 @@ import android.app.Application
 import android.content.Context
 import com.adflow.admob.AdMobProvider
 import com.adflow.core.AdNetworkProvider
-import com.adflow.core.AppOpenAdController
-import com.adflow.core.AppOpenAdManager
-import com.adflow.core.BannerAdManager
-import com.adflow.core.InterstitialAdManager
-import com.adflow.core.NativeAdManager
-import com.adflow.core.RewardedAdManager
+import com.adflow.core.fullscreen.AppOpenAdController
+import com.adflow.core.fullscreen.AppOpenAdManager
+import com.adflow.core.banner.BannerAdManager
+import com.adflow.core.fullscreen.InterstitialAdManager
+import com.adflow.core.nativead.NativeAdManager
+import com.adflow.core.rewarded.RewardedAdManager
 
 /**
  * Giữ instance thật của mọi placement do Flutter tạo, khoá theo placementId - phía Dart chỉ giữ 1

@@ -3,13 +3,13 @@ package com.dev.adflow
 import android.content.Context
 import com.adflow.admob.AdMobProvider
 import com.adflow.core.AdNetworkProvider
-import com.adflow.core.AdRule
-import com.adflow.core.AppOpenAdManager
-import com.adflow.core.BannerAdManager
-import com.adflow.core.InterstitialAdManager
-import com.adflow.core.NativeAdManager
-import com.adflow.core.PlacementConfig
-import com.adflow.core.RewardedAdManager
+import com.adflow.core.config.AdRule
+import com.adflow.core.fullscreen.AppOpenAdManager
+import com.adflow.core.banner.BannerAdManager
+import com.adflow.core.fullscreen.InterstitialAdManager
+import com.adflow.core.nativead.NativeAdManager
+import com.adflow.core.config.PlacementConfig
+import com.adflow.core.rewarded.RewardedAdManager
 
 class DemoAdPlacements(context: Context) {
 

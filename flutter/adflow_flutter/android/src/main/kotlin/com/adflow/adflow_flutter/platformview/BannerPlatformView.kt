@@ -5,7 +5,7 @@ import android.view.View
 import android.widget.FrameLayout
 import com.adflow.adflow_flutter.PlacementRegistry
 import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
-import com.adflow.core.BannerAdManager
+import com.adflow.core.banner.BannerAdManager
 import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory

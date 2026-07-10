@@ -1,5 +1,8 @@
 package com.adflow.core
 
+import com.adflow.core.consent.ConsentManager
+import com.adflow.core.revenue.AdRevenueEvent
+import com.adflow.core.revenue.RevenueLogger
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

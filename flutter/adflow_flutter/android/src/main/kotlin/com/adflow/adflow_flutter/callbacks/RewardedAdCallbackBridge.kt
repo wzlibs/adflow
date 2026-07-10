@@ -5,8 +5,8 @@ import com.adflow.adflow_flutter.generated.PShowEventKind
 import com.adflow.adflow_flutter.toPigeon
 import com.adflow.core.AdFlowError
 import com.adflow.core.BlockReason
-import com.adflow.core.RewardItem
-import com.adflow.core.RewardedAdCallback
+import com.adflow.core.rewarded.RewardItem
+import com.adflow.core.rewarded.RewardedAdCallback
 
 /**
  * Tương tự [ShowCallbackBridge] nhưng cho [RewardedAdCallback] - thêm nhánh

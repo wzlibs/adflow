@@ -3,10 +3,10 @@ package com.adflow.admob.banner
 import android.content.Context
 import android.view.View
 import com.adflow.core.AdLoadResult
-import com.adflow.core.AdRule
+import com.adflow.core.config.AdRule
 import com.adflow.core.BlockReason
-import com.adflow.core.PlacementConfig
-import com.adflow.core.RetryPolicy
+import com.adflow.core.config.PlacementConfig
+import com.adflow.core.config.RetryPolicy
 import com.google.android.gms.ads.AdView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

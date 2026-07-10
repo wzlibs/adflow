@@ -4,10 +4,10 @@ import android.app.Activity
 import android.content.Context
 import com.adflow.admob.dispatchRevenue
 import com.adflow.core.AdType
-import com.adflow.core.AppOpenAdManager
-import com.adflow.core.FullScreenAdManagerBase
-import com.adflow.core.PlacementConfig
-import com.adflow.core.ShowCallback
+import com.adflow.core.fullscreen.AppOpenAdManager
+import com.adflow.core.fullscreen.FullScreenAdManagerBase
+import com.adflow.core.config.PlacementConfig
+import com.adflow.core.fullscreen.ShowCallback
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.OnPaidEventListener

@@ -10,7 +10,7 @@ import com.adflow.adflow_flutter.generated.NativeAdHostApi
 import com.adflow.adflow_flutter.generated.RewardedAdHostApi
 import com.adflow.adflow_flutter.platformview.BannerPlatformViewFactory
 import com.adflow.adflow_flutter.platformview.NativePlatformViewFactory
-import com.adflow.core.NativeAdRenderer
+import com.adflow.core.nativead.NativeAdRenderer
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware

@@ -5,7 +5,7 @@ import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
 import com.adflow.adflow_flutter.generated.AppOpenAdHostApi
 import com.adflow.adflow_flutter.generated.PLoadResult
 import com.adflow.adflow_flutter.generated.PPlacementConfig
-import com.adflow.core.AppOpenAdController
+import com.adflow.core.fullscreen.AppOpenAdController
 
 class AppOpenAdHostApiImpl(
     private val registry: PlacementRegistry,

@@ -8,8 +8,8 @@ import com.adflow.adflow_flutter.generated.PBlockReason
 import com.adflow.adflow_flutter.generated.PLoadResult
 import com.adflow.adflow_flutter.generated.PShowEventKind
 import com.adflow.core.AdLoadResult
-import com.adflow.core.InterstitialAdManager
-import com.adflow.core.ShowCallback
+import com.adflow.core.fullscreen.InterstitialAdManager
+import com.adflow.core.fullscreen.ShowCallback
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame

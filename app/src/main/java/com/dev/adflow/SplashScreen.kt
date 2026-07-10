@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.adflow.core.AdFlowError
 import com.adflow.core.BlockReason
-import com.adflow.core.ShowCallback
+import com.adflow.core.fullscreen.ShowCallback
 import kotlinx.coroutines.delay
 
 private const val SPLASH_POLL_INTERVAL_MS = 500L

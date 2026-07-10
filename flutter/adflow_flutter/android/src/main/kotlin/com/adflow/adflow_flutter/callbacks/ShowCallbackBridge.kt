@@ -5,7 +5,7 @@ import com.adflow.adflow_flutter.generated.PShowEventKind
 import com.adflow.adflow_flutter.toPigeon
 import com.adflow.core.AdFlowError
 import com.adflow.core.BlockReason
-import com.adflow.core.ShowCallback
+import com.adflow.core.fullscreen.ShowCallback
 
 /**
  * Chuyển tiếp sự kiện show() của Interstitial/AppOpen ([ShowCallback]) sang Dart qua
