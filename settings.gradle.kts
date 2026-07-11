@@ -26,3 +26,4 @@ rootProject.name = "AdFlow"
 include(":app")
 include(":adflow-core")
 include(":adflow-admob")
+include(":adflow-compose")

@@ -1,33 +1,26 @@
 package com.adflow.admob
 
-import com.adflow.core.AdFlowCore
+import com.adflow.core.network.AdRequestInfo
 import com.adflow.core.revenue.AdRevenueEvent
-import com.adflow.core.AdType
 import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.ResponseInfo
 
-/**
- * Xây dựng và dispatch [AdRevenueEvent] cho 1 callback paid-event. Mọi AdMob*AdManager đều nối
- * hàm này vào `onPaidEventListener`/`setOnPaidEventListener` của SDK với logic giống nhau, chỉ
- * khác placement/ad type/ad unit/response info đang report - đặt chung ở đây để không phải
- * copy-paste việc mapping này cho mỗi loại ad.
- */
-internal fun dispatchRevenue(
-    placementId: String,
-    adType: AdType,
-    adUnitId: String,
-    adValue: AdValue,
-    responseInfo: ResponseInfo?,
-) {
-    AdFlowCore.dispatchRevenue(
-        AdRevenueEvent(
-            placementId = placementId,
-            adType = adType,
-            adUnitId = adUnitId,
-            valueMicros = adValue.valueMicros,
-            currencyCode = adValue.currencyCode,
-            precision = precisionName(adValue.precisionType),
-            adNetwork = responseInfo?.loadedAdapterResponseInfo?.adSourceName,
-        ),
+/** Dựng [AdRevenueEvent] cho 1 paid event - dùng chung bởi mọi source AdMob (nối vào
+ * `onPaidEventListener`/`setOnPaidEventListener` của SDK), tránh copy-paste mapping này 5 lần. */
+internal fun mapRevenue(request: AdRequestInfo, adValue: AdValue, responseInfo: ResponseInfo?): AdRevenueEvent =
+    AdRevenueEvent(
+        placementId = request.placementId,
+        adType = request.adType,
+        adUnitId = request.adUnitId,
+        valueMicros = adValue.valueMicros,
+        currencyCode = adValue.currencyCode,
+        precision = precisionName(adValue.precisionType),
+        adNetwork = responseInfo?.loadedAdapterResponseInfo?.adSourceName,
     )
+
+internal fun precisionName(precisionType: Int): String = when (precisionType) {
+    AdValue.PrecisionType.ESTIMATED -> "ESTIMATED"
+    AdValue.PrecisionType.PUBLISHER_PROVIDED -> "PUBLISHER_PROVIDED"
+    AdValue.PrecisionType.PRECISE -> "PRECISE"
+    else -> "UNKNOWN"
 }

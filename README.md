@@ -1,6 +1,15 @@
 # AdFlow
 
-AdFlow là thư viện quản lý quảng cáo cho app Android, hỗ trợ Interstitial, App Open, Rewarded, Native và Banner. Thư viện tách thành 2 phần: `adflow-core` (API độc lập với network quảng cáo) và `adflow-admob` (implementation dùng Google AdMob). Tài liệu này hướng dẫn cách nhúng AdFlow vào 1 app khác và dùng nó trong thực tế - không đi vào chi tiết bên trong lib hoạt động ra sao.
+AdFlow là thư viện quản lý quảng cáo cho app Android, hỗ trợ Interstitial, App Open, Rewarded,
+Native và Banner. Thư viện tách thành 3 phần: `adflow-core` (API độc lập với network quảng cáo,
+state-first - mỗi placement expose `StateFlow<AdState>` + listener), `adflow-admob`
+(implementation dùng Google AdMob), và `adflow-compose` (composable slot cho Banner/Native, tùy
+chọn - chỉ cần nếu app dùng Jetpack Compose). Tài liệu này hướng dẫn cách nhúng AdFlow vào 1 app
+khác và dùng nó trong thực tế - không đi vào chi tiết bên trong lib hoạt động ra sao (xem
+`docs/superpowers/specs/` cho kiến trúc chi tiết).
+
+> **Bản 1.0 viết lại toàn bộ API** so với 0.x - không tương thích ngược. Xem mục 11 nếu bạn đang
+> nâng cấp từ 0.x.
 
 ## 1. Thêm vào project
 
@@ -22,21 +31,26 @@ Trong `build.gradle.kts` của app:
 
 ```kotlin
 dependencies {
-    implementation("com.github.wzlibs.adflow:core:v0.2.0")
-    implementation("com.github.wzlibs.adflow:admob:v0.2.0")
+    implementation("com.github.wzlibs.adflow:core:v1.0.0-alpha01")
+    implementation("com.github.wzlibs.adflow:admob:v1.0.0-alpha01")
+    // Chỉ cần nếu dùng AdFlowBanner()/AdFlowNative() composable (mục 6) - app XML-only bỏ qua dòng này.
+    implementation("com.github.wzlibs.adflow:compose:v1.0.0-alpha01")
 }
 ```
 
-(`v0.2.0` là tag release - xem tag mới nhất tại repo GitHub `wzlibs/adflow`. JitPack build theo yêu cầu ở lần đầu tiên có người dùng 1 tag mới, có thể mất khoảng 1-2 phút cho lần đầu).
+(`v1.0.0-alpha01` là tag release - xem tag mới nhất tại repo GitHub `wzlibs/adflow`. JitPack build
+theo yêu cầu ở lần đầu tiên có người dùng 1 tag mới, có thể mất khoảng 1-2 phút cho lần đầu).
 
 ### Cách 2 - include module trực tiếp
 
-Copy 2 thư mục module `adflow-core`/`adflow-admob` vào project, hoặc gộp app vào cùng multi-module build này, rồi:
+Copy 3 thư mục module `adflow-core`/`adflow-admob`/`adflow-compose` vào project, hoặc gộp app vào
+cùng multi-module build này, rồi:
 
 ```kotlin
 // settings.gradle.kts của app
 include(":adflow-core")
 include(":adflow-admob")
+include(":adflow-compose")
 ```
 
 ```kotlin
@@ -44,12 +58,9 @@ include(":adflow-admob")
 dependencies {
     implementation(project(":adflow-core"))
     implementation(project(":adflow-admob"))
+    implementation(project(":adflow-compose")) // tùy chọn, chỉ cần nếu dùng Compose
 }
 ```
-
----
-
-Nếu app dùng các Compose helper của lib (`BannerAdView`, `NativeAdView`, xem mục 6) thì app phải tự có Jetpack Compose (Compose BOM + `androidx.compose.ui`) trong classpath của mình - `adflow-admob` không tự kéo Compose runtime cho app.
 
 ## 2. Khai báo AndroidManifest
 
@@ -63,296 +74,329 @@ App phải tự khai báo AdMob App ID trong `AndroidManifest.xml`:
 </application>
 ```
 
-Giá trị `ca-app-pub-3940256099942544~3347511713` trong repo demo là **test App ID chính thức của Google** - chỉ dùng khi phát triển.
+Giá trị `ca-app-pub-3940256099942544~3347511713` trong repo demo là **test App ID chính thức của
+Google** - chỉ dùng khi phát triển.
 
-## 3. Khởi tạo trong `Application`
+## 3. Khởi tạo - `AdFlow.initialize { }`
+
+Toàn bộ placement được khai báo tập trung trong **1 khối DSL duy nhất**, gọi 1 lần ở
+`Application.onCreate()` - không còn pattern "app tự viết class placements + wire provider" của
+0.x:
 
 ```kotlin
 class MyApp : Application() {
-
-    lateinit var placements: MyAdPlacements
-        private set
-
     override fun onCreate() {
         super.onCreate()
-        AdFlowCore.configure(logger = LogcatAdFlowLogger(tag = "AdFlowDebug"))
-        placements = MyAdPlacements(this)
+        AdFlow.initialize(this) {
+            // Dòng duy nhất gắn app với 1 network implementation cụ thể; đổi AdMobNetwork() sang
+            // implementation AdNetwork khác để chuyển network.
+            network = AdMobNetwork()
+            logger = LogcatAdFlowLogger(tag = "AdFlowDebug")
 
-        // Chỉ init provider và load ads khi app thực sự vào foreground lần đầu - tránh lãng phí
-        // ad request cho những lần process bị OS đánh thức chỉ để xử lý việc ở background (ví dụ
-        // FCM push) mà không có Activity nào sắp hiển thị.
-        AdFlowCore.runOnFirstForeground {
-            placements.provider.initialize(this) {
-                placements.splashInterstitial.load()
-                placements.globalInterstitial.load()
-                placements.appOpen.load()
-                placements.rewarded.load()
-                placements.banner.load()
-                placements.native.load()
+            interstitial("splash_interstitial") {
+                adUnits("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy")
+                loadWhen { !PremiumState.isPremium }
+                showWhen { !PremiumState.isPremium }
+            }
+            interstitial("global_interstitial") {
+                adUnits("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy")
+            }
+            appOpen("app_open") {
+                adUnits("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy")
+                // true: tự động show mỗi khi app quay lại foreground - không cần tự viết
+                // AppOpenAdController như 0.x, không bao giờ đè lên full-screen ad khác.
+                autoShowOnForeground = true
+            }
+            rewarded("rewarded") {
+                adUnits("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy")
+            }
+            banner("home_banner") {
+                adUnits("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy")
+            }
+            native("home_native") {
+                adUnits("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy")
+                renderer = DefaultMediumNativeAdRenderer() // bắt buộc set 1 renderer, xem mục 6
             }
         }
-
-        // Tự động show App Open ad mỗi khi app quay lại foreground.
-        AppOpenAdController(this, placements.appOpen).start()
     }
 }
 ```
 
-- `AdFlowCore.configure(...)` gọi 1 lần duy nhất, thiết lập logger và (tùy chọn) tần suất hiển thị chung (xem mục 7).
-- `AdFlowCore.runOnFirstForeground { ... }` đảm bảo phần init SDK + load ads chỉ chạy khi có Activity thật sự vào foreground, không chạy nếu process chỉ được đánh thức để làm việc nền.
-- `AppOpenAdController(application, appOpen).start()` lo việc tự show App Open ad mỗi khi app foreground; không cần tự gọi `show()` cho placement này ở nơi khác trừ khi muốn hiển thị thủ công.
-
-## 4. GDPR/quyền riêng tư (Consent)
-
-AdFlow bọc [Google User Messaging Platform (UMP)](https://developers.google.com/admob/android/privacy) - CMP chính thức của Google, tự phát hiện khu vực (EEA/UK) cần xin consent, app không cần tự viết logic phát hiện vùng.
-
-`ConsentManager` là 1 primitive độc lập - **không có vị trí bắt buộc phải gọi**. Chọn 1 `Activity` nào tiện (Activity đầu tiên của app là lựa chọn tự nhiên nhất) và gọi:
+Sau khi khởi tạo, lấy controller ở **bất kỳ đâu khác** bằng `placementId` đã khai báo:
 
 ```kotlin
-placements.provider.createConsentManager(activity).requestConsentIfNeeded(activity) { error ->
-    // resolve xong (có thể đã hiện form, hoặc không cần vì ngoài EEA/UK) - gọi lại load() ở đây
-    // cho các placement muốn dùng ngay, phòng trường hợp lần load() trước đó (nếu có) đã bị chặn
-    // vì consent chưa resolve.
-    placements.splashInterstitial.load()
-    placements.globalInterstitial.load()
+AdFlow.interstitial("global_interstitial")   // InterstitialAd
+AdFlow.appOpen("app_open")                    // AppOpenAd
+AdFlow.rewarded("rewarded")                   // RewardedAd
+AdFlow.banner("home_banner")                  // BannerAdController
+AdFlow.native("home_native")                  // NativeAdController
+```
+
+Gọi sai `placementId` (chưa khai báo, hoặc khai báo với loại ad khác) sẽ throw ngay với thông báo
+lỗi rõ ràng - fail fast thay vì âm thầm trả về null.
+
+`AdFlow.initialize()` tự động:
+- Trì hoãn `network.initialize()` + `load()` mọi placement có `preload = true` (mặc định) tới lúc
+  app **thực sự** vào foreground lần đầu - tránh lãng phí ad request khi process chỉ bị OS đánh
+  thức để xử lý việc nền (FCM push...) mà không có Activity nào sắp hiển thị.
+- Gọi lần 2 trở đi là no-op (chỉ log cảnh báo) - an toàn nếu `onCreate()` vô tình chạy lại.
+
+Các field hay dùng trong DSL của mỗi placement:
+
+- `adUnits(...)` - bắt buộc, danh sách ad unit ID theo thứ tự waterfall (thử ID đầu, hết fill thì
+  rơi xuống ID kế tiếp).
+- `loadWhen { }` / `showWhen { }` - điều kiện app tự định nghĩa để chặn load/show (ví dụ user đã
+  mua premium thì trả về `false`). Muốn tắt hẳn 1 placement (không bao giờ load), dùng
+  `loadWhen { false }` - không có field `enabled` riêng, `loadRule` đã đủ diễn đạt trường hợp này.
+- `preload`, `expiry` (không có ở Banner - xem mục 7), `retryPolicy` - có giá trị mặc định hợp lý,
+  chỉ cần chỉnh khi có yêu cầu đặc biệt.
+
+## 4. Trạng thái (state) - thay cho callback 1 lần của 0.x
+
+Mọi placement expose `state: StateFlow<AdState>`:
+
+```kotlin
+sealed interface AdState {
+    data object Idle : AdState
+    data object Loading : AdState
+    data class Loaded(val loadedAtMs: Long) : AdState
+    data class Failed(val error: AdFlowError, val willRetry: Boolean, val nextRetryDelayMs: Long?) : AdState
+    data object Showing : AdState   // chỉ full-screen (Interstitial/App Open/Rewarded)
+}
+```
+
+Dùng trực tiếp để tự vẽ UI (shimmer lúc `Loading`, ẩn slot lúc `Failed`...) mà không cần
+`isReady()`/poll như 0.x:
+
+```kotlin
+val state by AdFlow.banner("home_banner").state.collectAsStateWithLifecycle()
+```
+
+Hoặc dùng listener kiểu AdMob (cho code không dùng coroutines - XML/View truyền thống):
+
+```kotlin
+AdFlow.interstitial("global_interstitial").addListener(object : AdListener {
+    override fun onAdLoaded() { /* ... */ }
+    override fun onAdFailedToLoad(error: AdFlowError, willRetry: Boolean) { /* ... */ }
+    override fun onAdBlocked(reason: BlockReason) { /* ... */ }
+})
+```
+
+Listener mới đăng ký được **replay ngay trạng thái hiện tại** - không bao giờ lỡ mất `onAdLoaded()`
+vì đăng ký muộn.
+
+**Retry mặc định hữu hạn 3 chu kỳ** (backoff 5s/10s/20s) rồi kết thúc `Failed(willRetry = false)`
+- không còn retry vô hạn nền như 0.x. Placement không kẹt chết: 1 lượt load mới (đếm lại từ 0) tự
+  mở khi có nhu cầu thật (view attach lại, `show()` tự chữa lành, gọi `load()`/`reload()` thủ công,
+  app quay lại foreground với placement `preload = true`). Muốn hành vi vô hạn thì tự set
+  `retryPolicy = RetryPolicy(maxRetries = Int.MAX_VALUE)`.
+
+`BlockReason` tách rõ **đang load** và **hết retry, không có gì để chờ**:
+
+```kotlin
+enum class BlockReason {
+    STILL_LOADING, NO_AD_AVAILABLE,
+    CONSENT_REQUIRED, RULE_REJECTED, INTERVAL_NOT_ELAPSED, ANOTHER_AD_SHOWING,
+}
+```
+
+## 5. Hiển thị Interstitial / App Open / Rewarded
+
+```kotlin
+AdFlow.interstitial("global_interstitial").show(activity, object : FullScreenCallback {
+    override fun onAdDismissed() { /* điều hướng tiếp sau khi đóng ad */ }
+    override fun onAdFailedToShow(error: AdFlowError) { /* fallback */ }
+    override fun onAdBlocked(reason: BlockReason) { /* STILL_LOADING/NO_AD_AVAILABLE/INTERVAL_NOT_ELAPSED/... */ }
+})
+```
+
+Không cần xử lý callback: `show(activity, FullScreenCallback.EMPTY)`.
+
+**Rewarded** nhận `RewardedAdCallback` (thêm `onUserEarnedReward`), hoặc dùng overload tiện:
+
+```kotlin
+AdFlow.rewarded("rewarded").show(activity) { reward -> /* reward.amount, reward.type */ }
+```
+
+**Splash pattern** - đợi ad ready trong tối đa N giây rồi show, hết giờ thì đi tiếp không show:
+
+```kotlin
+LaunchedEffect(Unit) {
+    val splash = AdFlow.interstitial("splash_interstitial")
+    if (splash.awaitReady(8.seconds)) {
+        splash.show(activity, callback)
+    } else {
+        navigateHome()
+    }
+}
+```
+
+## 6. Banner / Native - view tự quản lý, không còn polling
+
+Khác biệt lớn nhất so với 0.x: `AdFlowBannerView`/`AdFlowNativeAdView` **tự quan sát state và tự
+cập nhật nội dung** - không cần `isReady()`, không cần `LaunchedEffect`+`delay`+`key()` bump để
+"ép" Compose tạo lại view khi ad load xong muộn.
+
+### XML / View truyền thống
+
+```xml
+<com.adflow.core.banner.AdFlowBannerView
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:adflowPlacementId="home_banner" />
+
+<com.adflow.core.nativead.AdFlowNativeAdView
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:adflowPlacementId="home_native" />
+```
+
+Hoặc gán bằng code: `view.placementId = "home_banner"`. View tự `load()`, tự attach ad thật khi
+`Loaded`, tự collapse (`visibility = GONE`, không chiếm layout - tắt qua `view.autoCollapse =
+false` nếu muốn tự quản lý visibility) khi chưa có/bị chặn, tự nở lại khi ad đến muộn. Gán
+`view.adListener` nếu cần biết chính xác lý do bị chặn (`onAdBlocked`) hay lỗi load
+(`onAdFailedToLoad`).
+
+Native cần `NativeAdRenderer` - lấy từ DSL (`native(id) { renderer = ... }`) hoặc gán riêng cho
+view (`view.renderer = ...`, override renderer mặc định của placement). Viết renderer riêng nếu 2
+renderer dựng sẵn không đủ:
+
+```kotlin
+class MyRenderer : NativeAdRenderer {
+    override fun onCreateView(context: Context, parent: ViewGroup): View { /* dựng layout riêng */ }
+    override fun onBind(view: View, assets: NativeAdAssets) { /* gán headline/body/icon/cta... */ }
+}
+```
+
+Có 2 renderer dựng sẵn trong `adflow-admob`: `DefaultMediumNativeAdRenderer` (headline + media +
+body + CTA, dọc) và `DefaultSmallNativeAdRenderer` (headline + icon + body, gọn hơn, dùng khi
+không đủ chỗ cho media lớn - vd item trong list).
+
+### Jetpack Compose (`adflow-compose`)
+
+```kotlin
+AdFlowBanner(
+    placementId = "home_banner",
+    loading = { ShimmerBox(height = 60.dp) },   // hiện lúc Idle/Loading
+    // failed = { error -> ... }                // hiện lúc Failed - mặc định rỗng, slot tự biến mất
+)
+
+AdFlowNative(
+    placementId = "home_native",
+    renderer = null, // null = dùng renderer mặc định khai báo trong DSL
+    loading = { ShimmerBox(height = 120.dp) },
+    failed = { Text("No ad") },
+)
+```
+
+**Đổi sang native ad mới (`reload()`):** khác Interstitial/Rewarded (tự "tiêu thụ" khi `show()`),
+1 native ad được cache và tái sử dụng cho tới khi hết hạn (`expiry`, mặc định 4h). Muốn ép đổi ad
+mới dù ad cũ còn hạn (vd user rời rồi quay lại màn hình đang hiển thị native ad):
+
+```kotlin
+AdFlow.native("home_native").reload()
+```
+
+View/composable **tự rebind** khi ad mới load xong - không cần app ép tạo lại view như 0.x
+(không còn cần bump `key()`).
+
+## 7. Tùy chỉnh retry, expiry, tần suất hiển thị
+
+```kotlin
+interstitial("global_interstitial") {
+    adUnits("...")
+    retryPolicy = RetryPolicy(initialDelayMs = 5_000, multiplier = 2.0, maxDelayMs = 60_000, maxRetries = 3)
+    expiry = 4.hours   // không có ở banner() - banner không bao giờ hết hạn
+}
+```
+
+Khoảng nghỉ tối thiểu giữa các lần hiển thị Interstitial/App Open (mặc định 30s cùng loại, 6s khác
+loại):
+
+```kotlin
+AdFlow.initialize(this) {
+    network = AdMobNetwork()
+    showIntervals {
+        interstitialAfterInterstitial = 45.seconds
+        appOpenAfterAppOpen = 60.seconds
+        interstitialAfterAppOpen = 8.seconds
+        appOpenAfterInterstitial = 8.seconds
+    }
     // ...
 }
 ```
 
-**Không cần tự viết điều kiện check consent trước khi gọi `load()`** - `load()` tự động tôn trọng consent (mặc định cho phép nếu app không tích hợp `ConsentManager`, để không phá vỡ hành vi hiện có). Nếu gọi `load()` trước khi consent resolve, nó chỉ fail an toàn (giống bị `enabled = false`), không crash, không mất placement - gọi lại `load()` sau khi `requestConsentIfNeeded` hoàn tất là đủ để load thật.
-
-Chính sách AdMob/Google Play yêu cầu có lối vào để user xem lại/đổi consent đã chọn - chỉ hiện khi cần:
+## 8. GDPR/quyền riêng tư (Consent)
 
 ```kotlin
-val consentManager = placements.provider.createConsentManager(context)
-if (consentManager.getPrivacyOptionsRequirement() == PrivacyOptionsRequirement.REQUIRED) {
-    // hiện nút/menu "Privacy options", bấm vào gọi:
-    consentManager.showPrivacyOptionsForm(activity) { error -> }
+AdFlow.consent.requestIfNeeded(activity) { error ->
+    // resolve xong (có thể đã hiện form, hoặc không cần vì ngoài EEA/UK)
 }
 ```
 
-Để test flow EEA khi máy/thiết bị test không ở EEA thật, dùng `AdMobConsentManager` (implementation cụ thể của `adflow-admob`) với debug settings:
+**Không cần tự viết điều kiện check consent trước khi gọi `load()`** - `load()` tự động tôn trọng
+consent (mặc định cho phép nếu app chưa gọi `requestIfNeeded`, để không phá vỡ hành vi mặc định).
+
+Chính sách AdMob/Google Play yêu cầu có lối vào để user xem lại/đổi consent đã chọn:
 
 ```kotlin
-AdMobConsentManager(
-    context,
-    debugGeography = ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA,
-    testDeviceHashedIds = listOf("TEST-DEVICE-HASHED-ID"),
-)
-```
-
-`debugGeography` chỉ có hiệu lực trên thiết bị đã được đăng ký làm test device qua `testDeviceHashedIds` - trên thiết bị chưa đăng ký, nó bị bỏ qua âm thầm (không lỗi, chỉ đơn giản chạy như production thật). Xem [hướng dẫn testing chính thức của Google](https://developers.google.com/admob/android/privacy#testing) để lấy đúng hashed ID cho thiết bị test của bạn.
-
-## 5. Khai báo Placements
-
-AdFlow không có sẵn 1 class "danh sách placement" - mỗi app tự viết class riêng của mình theo pattern sau (đặt tên tùy ý, ví dụ `MyAdPlacements`):
-
-```kotlin
-class MyAdPlacements(context: Context) {
-
-    // Dòng duy nhất gắn app với 1 network implementation cụ thể;
-    // đổi AdMobProvider sang implementation AdNetworkProvider khác để chuyển network.
-    val provider: AdNetworkProvider = AdMobProvider(context)
-
-    private val notPremium = AdRule { !PremiumState.isPremium }
-
-    val splashInterstitial: InterstitialAdManager = provider.createInterstitial(
-        PlacementConfig(
-            placementId = "splash_interstitial",
-            adUnitIds = listOf("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy"),
-            loadRule = notPremium,
-            showRule = notPremium,
-        ),
-    )
-
-    val appOpen: AppOpenAdManager = provider.createAppOpen(
-        PlacementConfig(
-            placementId = "app_open",
-            adUnitIds = listOf("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy"),
-            loadRule = notPremium,
-            showRule = notPremium,
-        ),
-    )
-
-    val rewarded: RewardedAdManager = provider.createRewarded(
-        PlacementConfig(
-            placementId = "rewarded",
-            adUnitIds = listOf("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy"),
-        ),
-    )
-
-    val banner: BannerAdManager = provider.createBanner(
-        PlacementConfig(
-            placementId = "home_banner",
-            adUnitIds = listOf("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy"),
-            loadRule = notPremium,
-            showRule = notPremium,
-        ),
-    )
-
-    val native: NativeAdManager = provider.createNative(
-        PlacementConfig(
-            placementId = "home_native",
-            adUnitIds = listOf("ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy"),
-            loadRule = notPremium,
-            showRule = notPremium,
-        ),
-    )
+if (AdFlow.consent.privacyOptionsRequirement == PrivacyOptionsRequirement.REQUIRED) {
+    // hiện nút "Privacy options", bấm vào gọi:
+    AdFlow.consent.showPrivacyOptionsForm(activity) { error -> }
 }
 ```
 
-Các field hay dùng của `PlacementConfig`:
-
-- `placementId` - định danh duy nhất cho placement này, dùng trong log và trong `AdRule`.
-- `adUnitIds` - danh sách ad unit ID theo thứ tự waterfall (thử ID đầu, hết fill thì rơi xuống ID kế tiếp).
-- `loadRule` / `showRule` - kiểu `AdRule { isAllowed(placementId): Boolean }`, dùng để tắt load/show có điều kiện (ví dụ user đã mua gói premium thì trả về `false`). `showRule` từ chối không bao giờ throw cho bất kỳ loại ad nào - Interstitial/App Open/Rewarded báo qua `onShowBlocked(BlockReason.RULE_REJECTED)` của `show()`; Native/Banner báo qua tham số `onShowBlocked` của `createView()`/`getView()` (xem mục 6).
-- `retryPolicy` và `expiryMs` có giá trị mặc định hợp lý (retry backoff khi load lỗi, ad hết hạn sau 4 giờ) - chỉ cần chỉnh khi có yêu cầu đặc biệt.
-
-## 6. Hiển thị từng loại ad
-
-**Interstitial / App Open** (show thủ công - App Open còn có thể tự show qua `AppOpenAdController` ở mục 3):
+Test flow EEA khi máy test không ở EEA thật:
 
 ```kotlin
-if (placements.globalInterstitial.isReady()) {
-    placements.globalInterstitial.show(activity, object : ShowCallback {
-        override fun onAdDismissed() { /* điều hướng tiếp sau khi đóng ad */ }
-        override fun onAdFailedToShow(error: AdFlowError) { /* fallback */ }
-        override fun onShowBlocked(reason: BlockReason) { /* bị chặn bởi show-interval/showRule */ }
-    })
-}
-```
-
-Nếu không cần xử lý callback, dùng `ShowCallback.NONE`:
-
-```kotlin
-placements.appOpen.show(activity, ShowCallback.NONE)
-```
-
-**Rewarded:**
-
-```kotlin
-placements.rewarded.show(activity, object : RewardedAdCallback {
-    override fun onUserEarnedReward(reward: RewardItem) {
-        // cộng thưởng cho user: reward.amount, reward.type
+AdFlow.initialize(this) {
+    network = AdMobNetwork()
+    consentDebug {
+        geography = ConsentDebugGeography.EEA
+        testDeviceHashedIds = listOf("TEST-DEVICE-HASHED-ID")
     }
-})
-```
-
-**Banner:**
-
-```kotlin
-// View truyền thống - luôn an toàn để gọi, không cần check isReady() trước. Nếu ad chưa
-// ready hoặc showRule đang từ chối, trả về 1 View rỗng và báo lý do qua onShowBlocked.
-val bannerView: View = placements.banner.getView(context) { reason ->
-    /* bị chặn: BlockReason.NOT_READY hoặc BlockReason.RULE_REJECTED */
+    // ...
 }
-
-// Compose - gọi thẳng, không cần check isReady() trước (xem ghi chú bên dưới ví dụ Native)
-BannerAdView(manager = placements.banner, onShowBlocked = { reason -> /* ẩn/log nếu cần */ })
 ```
 
-**Native:**
+## 9. Theo dõi doanh thu (tùy chọn)
 
 ```kotlin
-// View truyền thống, cần 1 NativeAdRenderer (có thể viết renderer tùy biến) - cũng luôn an
-// toàn để gọi như Banner ở trên.
-val nativeView: View = placements.native.createView(context, MyCustomRenderer()) { reason -> /* ... */ }
-
-// Compose, dùng renderer mặc định có sẵn - gọi thẳng, không cần check isReady() trước
-NativeAdView(
-    manager = placements.native,
-    renderer = DefaultMediumNativeAdRenderer(),
-    onShowBlocked = { reason -> /* ẩn/log nếu cần */ },
-)
-```
-
-Có 2 renderer dựng sẵn trong `adflow-admob`: `DefaultMediumNativeAdRenderer` (headline + media + body + CTA, dọc) và `DefaultSmallNativeAdRenderer` (headline + icon + body, gọn hơn, không có `MediaView`, dùng khi không đủ chỗ cho ảnh media lớn - vd item trong list). Viết `NativeAdRenderer` riêng nếu cần layout khác - `bind(view, assets: NativeAdAssets)` nhận `headline`, `body`, `icon` (`Drawable?` đã decode sẵn từ `NativeAd.icon?.drawable`, gán thẳng qua `ImageView.setImageDrawable()`), `callToAction`, `starRating`, `advertiser`.
-
-`createView()`/`getView()` (và `NativeAdView`/`BannerAdView` bọc chúng) không bao giờ throw và luôn an toàn để gọi thẳng, không cần check `isReady()` trước - nếu bị chặn (chưa ready hoặc `showRule` từ chối), trả về 1 `View` rỗng (`visibility = GONE`, không chiếm layout) và báo lý do qua tham số `onShowBlocked: (BlockReason) -> Unit`, giống hệt cách `show()` của full-screen ad báo qua `onShowBlocked` của `ShowCallback`.
-
-`AndroidView` bên trong `NativeAdView`/`BannerAdView` chỉ chạy factory (tạo `View` thật) đúng 1 lần lúc composable được đưa vào composition - các lần recompose sau đó không tự tạo lại `View`, nên nếu bị chặn lúc mới emit (vd ad chưa load xong), nó sẽ kẹt ở `View` rỗng mãi trừ khi được ép tạo lại. Dùng `onShowBlocked` để đặt 1 flag "đang bị chặn", rồi poll định kỳ (`LaunchedEffect` + `delay(500)`) để bump 1 `key()` bọc quanh composable khi flag đó đang bật - `key()` đổi giá trị sẽ ép Compose huỷ-tạo lại `AndroidView`, tự động thử `createView()`/`getView()` lại lần nữa cho tới khi thành công:
-
-```kotlin
-var generation by remember { mutableStateOf(0) }
-var blocked by remember { mutableStateOf(false) }
-LaunchedEffect(placements.native) {
-    while (true) {
-        delay(500)
-        if (blocked) {
-            blocked = false
-            generation++
-        }
+AdFlow.initialize(this) {
+    network = AdMobNetwork()
+    revenueLogger { event: AdRevenueEvent ->
+        // event.placementId, event.adType, event.adUnitId,
+        // event.valueMicros, event.currencyCode, event.precision, event.adNetwork
     }
+    // ...
 }
-key(generation) {
-    NativeAdView(manager = placements.native, onShowBlocked = { blocked = true })
-}
+// hoặc đăng ký/gỡ sau khi đã initialize:
+AdFlow.addRevenueLogger(myLogger)
+AdFlow.removeRevenueLogger(myLogger)
 ```
 
-Xem `app/src/main/java/com/dev/adflow/HomeScreen.kt` để có ví dụ đầy đủ (native + banner, cả nút "Reload" chỉ hiện khi `!blocked`).
+## 10. Logging (tùy chọn)
 
-**Đổi sang native ad mới (`reload()`):** khác với Interstitial/Rewarded (tự "tiêu thụ" khi `show()`
-nên tự nhiên đã reload), 1 native ad được cache và tái sử dụng vô thời hạn cho tới khi hết hạn
-(`PlacementConfig.expiryMs`, mặc định 4h) - `load()` sẽ no-op nếu ad đang cache vẫn còn hạn. Nếu
-muốn ép đổi sang ad mới dù ad cũ vẫn còn hạn (ví dụ: user rời màn hình đang hiển thị native ad rồi
-quay lại, và muốn thấy ad khác), gọi `reload()`:
+Mặc định log qua Logcat (`LogcatAdFlowLogger`). Truyền `logger = ...` trong `AdFlow.initialize {}`
+nếu muốn gửi log đi nơi khác - xem chữ ký `AdFlowLogger.log(placementId, adType, event, detail)`.
 
-```kotlin
-placements.native.reload { result ->
-    if (result is AdLoadResult.Success) {
-        // ad mới đã load xong và thay cho ad cũ trong cache - ép tạo lại View để đọc ad mới
-    }
-}
-```
+## 11. Nâng cấp từ 0.x
 
-`reload()` **không** tự rebind `View`/`NativeAdView` đang hiển thị - `createView()` chỉ đọc
-`cachedAd` tại đúng lúc được gọi. App phải tự ép tạo lại View sau khi callback báo thành công (ví
-dụ đổi giá trị 1 Compose `key()` bọc quanh `NativeAdView`, xem `app/.../HomeScreen.kt`). Nếu
-`reload()` thất bại, ad cũ vẫn giữ nguyên trong cache - không bị mất/hết hạn oan.
+Bản 1.0 viết lại toàn bộ API - không có shim tương thích ngược, đổi mã theo bảng:
 
-Điểm gọi khuyến nghị là lifecycle callback ứng với lúc user "quay lại" màn hình đang hiển thị native
-ad (`onResume` của Activity/Fragment, hoặc tương đương) - đây là quyết định của app, thư viện không
-tự động phát hiện việc này (mỗi app có kiến trúc navigation khác nhau: Activity, Fragment, Jetpack
-Navigation, Compose Navigation...).
+| 0.x | 1.0 |
+|---|---|
+| Tự viết class `Placements` + `AdNetworkProvider` | `AdFlow.initialize { }` DSL |
+| `InterstitialAdManager`/`AppOpenAdManager`/... | `AdFlow.interstitial(id)`/`AdFlow.appOpen(id)`/... |
+| `isReady()` + `load(cb)` callback 1 lần | `state: StateFlow<AdState>` + `AdListener` |
+| `BlockReason.NOT_READY` | Tách `STILL_LOADING`/`NO_AD_AVAILABLE` |
+| `getView()`/`createView()` trả View tĩnh, cần poll+`key()` | `AdFlowBannerView`/`AdFlowNativeAdView` tự quản lý |
+| `AppOpenAdController(app, manager).start()` | `appOpen(id) { autoShowOnForeground = true }` |
+| `AdFlowCore.configure(...)` | `AdFlow.initialize { }` |
+| Retry mặc định vô hạn | Retry mặc định 3 chu kỳ + demand-driven (mục 4) |
 
-## 7. Tùy chỉnh tần suất hiển thị
+## 12. Trước khi release
 
-Mặc định AdFlow áp 1 khoảng nghỉ tối thiểu giữa các lần hiển thị Interstitial/App Open để tránh làm phiền user. Tùy chỉnh qua `ShowIntervalConfig` khi gọi `configure()`:
-
-```kotlin
-AdFlowCore.configure(
-    showIntervalConfig = ShowIntervalConfig(
-        interstitialAfterInterstitialMs = 45_000, // giữa 2 lần Interstitial
-        appOpenAfterAppOpenMs = 60_000,            // giữa 2 lần App Open
-        interstitialAfterAppOpenMs = 8_000,        // Interstitial ngay sau khi vừa show App Open
-        appOpenAfterInterstitialMs = 8_000,        // App Open ngay sau khi vừa show Interstitial
-    ),
-)
-```
-
-## 8. Theo dõi doanh thu (tùy chọn)
-
-Đăng ký 1 `RevenueLogger` để forward sự kiện doanh thu sang hệ thống đo lường của app (Adjust, AppsFlyer, Firebase...):
-
-```kotlin
-AdFlowCore.addRevenueLogger(RevenueLogger { event: AdRevenueEvent ->
-    // event.placementId, event.adType, event.adUnitId,
-    // event.valueMicros, event.currencyCode, event.precision, event.adNetwork
-})
-```
-
-## 9. Logging (tùy chọn)
-
-Mặc định AdFlowSDK log qua Logcat (`LogcatAdFlowLogger`). Truyền 1 `AdFlowLogger` tùy biến vào `configure()` nếu muốn gửi log đi nơi khác:
-
-```kotlin
-AdFlowCore.configure(logger = object : AdFlowLogger {
-    override fun log(placementId: String, adType: AdType, event: AdFlowEvent, detail: String?) {
-        // ghi log theo cách của app
-    }
-})
-```
-
-## 10. Trước khi release
-
-Toàn bộ App ID và Ad Unit ID dùng trong ví dụ ở tài liệu này (`ca-app-pub-3940256099942544/...`) là **ID test chính thức của Google**. Trước khi phát hành app, phải thay bằng App ID và Ad Unit ID thật được tạo trong tài khoản AdMob của app - dùng ID test khi release sẽ vi phạm chính sách AdMob.
+Toàn bộ App ID và Ad Unit ID dùng trong ví dụ ở tài liệu này (`ca-app-pub-3940256099942544/...`) là
+**ID test chính thức của Google**. Trước khi phát hành app, phải thay bằng App ID và Ad Unit ID
+thật được tạo trong tài khoản AdMob của app - dùng ID test khi release sẽ vi phạm chính sách AdMob.

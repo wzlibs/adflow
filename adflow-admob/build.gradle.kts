@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.compose)
     `maven-publish`
 }
 
@@ -12,10 +11,6 @@ android {
 
     defaultConfig {
         minSdk = 24
-    }
-
-    buildFeatures {
-        compose = true
     }
 
     compileOptions {
@@ -38,11 +33,9 @@ dependencies {
     api(project(":adflow-core"))
     implementation(libs.play.services.ads)
     implementation(libs.user.messaging.platform)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.foundation)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
 }
 

@@ -19,7 +19,9 @@ android {
     }
 
     testOptions {
-        unitTests.isIncludeAndroidResources = false
+        // Robolectric cần resources thật để inflate AdFlowBannerView/AdFlowNativeAdView với
+        // custom attrs (app:adflowPlacementId) trong test.
+        unitTests.isIncludeAndroidResources = true
     }
 
     publishing {
@@ -30,9 +32,13 @@ android {
 }
 
 dependencies {
+    // api (không phải implementation): StateFlow<AdState> nằm trong API public của mọi
+    // controller/placement - client cần thấy kotlinx.coroutines trên compile classpath.
+    api(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.lifecycle.process)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 // MavenPublication này cung cấp task publishToMavenLocal mà JitPack chạy khi build theo git tag

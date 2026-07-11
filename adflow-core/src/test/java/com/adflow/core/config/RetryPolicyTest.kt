@@ -4,25 +4,24 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class RetryPolicyTest {
+
     @Test
-    fun `default policy backs off 5s 10s 20s 40s 60s`() {
-        val policy = RetryPolicy.DEFAULT
+    fun `delayForAttempt doubles each attempt and caps at maxDelayMs`() {
+        val policy = RetryPolicy(initialDelayMs = 5_000, multiplier = 2.0, maxDelayMs = 60_000, maxRetries = 10)
+
         assertEquals(5_000L, policy.delayForAttempt(1))
         assertEquals(10_000L, policy.delayForAttempt(2))
         assertEquals(20_000L, policy.delayForAttempt(3))
         assertEquals(40_000L, policy.delayForAttempt(4))
-        assertEquals(60_000L, policy.delayForAttempt(5))
-    }
-
-    @Test
-    fun `delay is capped at maxDelayMs beyond the cap point`() {
-        val policy = RetryPolicy.DEFAULT
+        assertEquals(60_000L, policy.delayForAttempt(5)) // 80_000 bị cap về maxDelayMs
         assertEquals(60_000L, policy.delayForAttempt(6))
-        assertEquals(60_000L, policy.delayForAttempt(10))
     }
 
     @Test
-    fun `default policy retries without limit`() {
-        assertEquals(Int.MAX_VALUE, RetryPolicy.DEFAULT.maxRetries)
+    fun `default policy is 3 finite retries starting at 5s`() {
+        val policy = RetryPolicy.DEFAULT
+
+        assertEquals(3, policy.maxRetries)
+        assertEquals(5_000L, policy.delayForAttempt(1))
     }
 }

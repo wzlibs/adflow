@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dùng chung bởi AdFlowBannerView/AdFlowNativeAdView - đặt placementId qua XML thay vì
+         phải set thuộc tính bằng code, để app khai báo ad slot ngay trong layout. -->
+    <declare-styleable name="AdFlowAdView">
+        <attr name="adflowPlacementId" format="string" />
+    </declare-styleable>
+</resources>

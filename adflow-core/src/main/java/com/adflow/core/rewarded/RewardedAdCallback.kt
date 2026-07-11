@@ -1,16 +1,7 @@
 package com.adflow.core.rewarded
 
-import com.adflow.core.AdFlowError
-import com.adflow.core.AdShowBlockedCallback
-interface RewardedAdCallback : AdShowBlockedCallback {
-    fun onAdLoaded() {}
-    fun onAdFailedToLoad(error: AdFlowError) {}
-    fun onAdShown() {}
-    fun onAdFailedToShow(error: AdFlowError) {}
-    fun onUserEarnedReward(reward: RewardItem) {}
-    fun onAdDismissed() {}
+import com.adflow.core.fullscreen.FullScreenCallback
 
-    companion object {
-        val NONE: RewardedAdCallback = object : RewardedAdCallback {}
-    }
+interface RewardedAdCallback : FullScreenCallback {
+    fun onUserEarnedReward(reward: RewardItem)
 }

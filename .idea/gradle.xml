@@ -9,6 +9,9 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/adflow-admob" />
+            <option value="$PROJECT_DIR$/adflow-compose" />
+            <option value="$PROJECT_DIR$/adflow-core" />
             <option value="$PROJECT_DIR$/app" />
           </set>
         </option>
