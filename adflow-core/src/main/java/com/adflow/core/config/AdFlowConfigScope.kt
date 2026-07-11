@@ -9,8 +9,9 @@ import com.adflow.core.revenue.RevenueLogger
 import kotlin.time.Duration
 
 /**
- * Scope của `AdFlow.initialize(context) { ... }` - điểm đăng ký duy nhất cho mọi placement, thay
- * hẳn pattern "app tự viết class placements + wire AdNetworkProvider" của v1.
+ * Scope của `AdFlow.initialize(context) { ... }` - điểm đăng ký duy nhất cho mọi placement: khai
+ * network + cấu hình chung + từng placement (Interstitial/App Open/Rewarded/Native/Banner) ngay
+ * trong 1 khối DSL, không cần tự viết class quản lý placement hay tự wire network riêng.
  */
 @AdFlowDsl
 interface AdFlowConfigScope {

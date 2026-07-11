@@ -8,9 +8,9 @@ import com.adflow.core.revenue.RevenueLogger
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * Toàn bộ state runtime của 1 lần `AdFlow.initialize {}` - thay cho `AdFlowCore` global object
- * mutable của v1 bằng 1 instance sở hữu bởi facade `AdFlow`. Test tạo instance riêng thay vì phải
- * reset 1 singleton toàn cục.
+ * Toàn bộ state runtime của 1 lần `AdFlow.initialize {}` - 1 instance sở hữu bởi facade `AdFlow`,
+ * gom network, logger, slot chống chồng full-screen, chính sách giới hạn tần suất, cổng chờ
+ * foreground, và trạng thái consent. Test tạo được instance riêng, độc lập với nhau.
  */
 internal class AdFlowRuntime(
     val network: AdNetwork,

@@ -18,8 +18,8 @@ import kotlin.time.Duration.Companion.seconds
 fun SplashScreen(onDone: () -> Unit) {
     val context = LocalContext.current
 
-    // awaitReady() thay hẳn pattern poll isReady()+delay(500) của v1 - state-first, chỉ đơn giản
-    // đợi StateFlow phát Loaded trong tối đa 8s rồi tiếp tục dù ad có ready hay không.
+    // Đợi StateFlow phát Loaded trong tối đa 8s rồi tiếp tục (dù ad có ready hay không) - tránh
+    // giữ user ở splash quá lâu nếu ad không bao giờ load được (no fill, mất mạng...).
     LaunchedEffect(Unit) {
         val activity = context as? android.app.Activity ?: return@LaunchedEffect onDone()
         val splash = AdFlow.interstitial("splash_interstitial")

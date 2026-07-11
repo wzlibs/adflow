@@ -105,8 +105,7 @@ fun HomeScreen() {
                 Text("Reload Native Ad")
             }
 
-            // Không còn LaunchedEffect+delay(500)+key() bump như v1 - AdFlowBanner/AdFlowNative tự
-            // quan sát state và tự thay nội dung, kể cả sau reload().
+            // AdFlowBanner/AdFlowNative tự quan sát state và tự thay nội dung, kể cả sau reload().
             AdFlowNative(
                 placementId = "home_native",
                 loading = { ShimmerBox(height = 120.dp) },

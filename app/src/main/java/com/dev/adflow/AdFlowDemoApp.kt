@@ -27,7 +27,8 @@ class AdFlowDemoApp : Application() {
                 adUnits("ca-app-pub-3940256099942544/9257395921")
                 loadWhen { !PremiumState.isPremium }
                 showWhen { !PremiumState.isPremium }
-                // Tự show mỗi khi app quay lại foreground - thay AppOpenAdController thủ công của v1.
+                // Tự động show mỗi khi app quay lại foreground - không bao giờ đè lên full-screen
+                // ad khác đang hiển thị.
                 autoShowOnForeground = true
             }
             rewarded("rewarded") {

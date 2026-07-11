@@ -16,8 +16,7 @@ import com.adflow.core.R
  * [com.adflow.core.banner.AdFlowBannerView]: khai báo `placementId`, đặt vào cây UI, không cần tự
  * `load()`/poll. Khác Banner ở chỗ ad có thể được nhiều view cùng bind (không độc quyền), và
  * [reload] có thể đổi sang ad khác trong lúc view vẫn đang hiển thị - view tự rebind khi state
- * phát [com.adflow.core.AdState.Loaded] mới, không cần app ép tạo lại view (khác v1: không còn
- * cần bump `key()` trong Compose để thấy ad mới).
+ * phát [com.adflow.core.AdState.Loaded] mới, không cần app ép tạo lại view.
  */
 class AdFlowNativeAdView @JvmOverloads constructor(
     context: Context,

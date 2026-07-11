@@ -16,9 +16,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Máy trạng thái load/cache/retry/expiry dùng chung cho mọi loại ad (Interstitial/App
- * Open/Rewarded/Native/Banner) - thay 3 tầng kế thừa `Simple/Expiring/CachedAdLoaderBase` +
- * `RetryingAdLoader` + `WaterfallLoader` của v1 bằng 1 class generic duy nhất (composition thay
- * kế thừa), với state là output hạng nhất thay vì chỉ callback 1 lần.
+ * Open/Rewarded/Native/Banner) - 1 class generic duy nhất, dùng composition (không kế thừa), với
+ * state (`AdState`) là output hạng nhất thay vì chỉ callback 1 lần.
  *
  * Toàn bộ mutation (state, cachedAd, loadJob) được giả định chạy trên 1 dispatcher đơn luồng
  * (`Dispatchers.Main.immediate` lúc chạy thật, `TestDispatcher` lúc test) - không cần khóa đồng bộ

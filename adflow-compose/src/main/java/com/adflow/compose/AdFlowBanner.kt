@@ -15,9 +15,9 @@ import com.adflow.core.banner.AdFlowBannerView
 
 /**
  * Composable slot cho 1 banner placement - quan sát `AdFlow.banner(placementId).state` và tự
- * chuyển giữa [loading]/[failed]/ad thật, KHÔNG cần `key()` bump hay poll như v1: mỗi lần state
- * đổi, Compose recompose slot tương ứng; riêng nhánh ad thật dùng [AdFlowBannerView] (đã tự quản
- * lý attach/detach/lease) nên `AndroidView` chỉ tạo view 1 lần, không cần tái tạo thủ công.
+ * chuyển giữa [loading]/[failed]/ad thật: mỗi lần state đổi, Compose recompose slot tương ứng;
+ * riêng nhánh ad thật dùng [AdFlowBannerView] (đã tự quản lý attach/detach/lease) nên
+ * `AndroidView` chỉ tạo view 1 lần, không cần tái tạo thủ công.
  */
 @Composable
 fun AdFlowBanner(

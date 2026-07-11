@@ -36,7 +36,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":adflow-core"))
+    // adflow-core kéo theo tự động qua api(project(":adflow-core")) trong adflow-admob - không
+    // cần khai riêng (xem README.md mục "Thêm vào project").
     implementation(project(":adflow-admob"))
     implementation(project(":adflow-compose"))
     implementation(platform(libs.androidx.compose.bom))
