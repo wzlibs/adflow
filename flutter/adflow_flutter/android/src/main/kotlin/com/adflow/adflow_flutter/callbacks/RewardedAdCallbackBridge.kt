@@ -10,16 +10,14 @@ import com.adflow.core.rewarded.RewardedAdCallback
 
 /**
  * Tương tự [ShowCallbackBridge] nhưng cho [RewardedAdCallback] - thêm nhánh
- * [PShowEventKind.USER_EARNED_REWARD] mang [RewardItem]. `onAdLoaded`/`onAdFailedToLoad` không
- * override vì `AdMobRewardedAdManager` không bao giờ gọi 2 callback đó (đã xác nhận qua khảo sát
- * code thật), nên không cần map sang Dart.
+ * [PShowEventKind.USER_EARNED_REWARD] mang [RewardItem].
  */
 class RewardedAdCallbackBridge(
     private val placementId: String,
     private val flutterApi: AdFlowFlutterApi,
 ) : RewardedAdCallback {
 
-    override fun onAdShown() {
+    override fun onAdShowed() {
         flutterApi.onShowEvent(placementId, PShowEventKind.SHOWN, null, null, null) {}
     }
 
@@ -31,7 +29,7 @@ class RewardedAdCallbackBridge(
         flutterApi.onShowEvent(placementId, PShowEventKind.DISMISSED, null, null, null) {}
     }
 
-    override fun onShowBlocked(reason: BlockReason) {
+    override fun onAdBlocked(reason: BlockReason) {
         flutterApi.onShowEvent(placementId, PShowEventKind.SHOW_BLOCKED, null, reason.toPigeon(), null) {}
     }
 

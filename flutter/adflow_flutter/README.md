@@ -1,302 +1,165 @@
 # adflow_flutter
 
-Flutter plugin bọc thư viện quảng cáo AdFlow (`:adflow-core` + `:adflow-admob`), hỗ trợ Interstitial, App Open, Rewarded, Native và Banner. **Hiện chỉ hỗ trợ Android** - iOS chưa implement (sẽ làm sau như 1 lib Swift riêng biệt).
+Android-only Flutter bridge for AdFlow v2. Placements are declared once, ad lifecycle is exposed
+as reactive state, and banner/native platform views manage loading and rebinding themselves.
 
-## 1. Thêm vào project
+## Setup
 
-### Cách 1 - qua pub.dev (khuyến nghị)
-
-```bash
-flutter pub add adflow_flutter
-```
-
-hoặc thêm thủ công vào `pubspec.yaml`:
-
-```yaml
-dependencies:
-  adflow_flutter: ^0.5.0
-```
-
-### Cách 2 - qua `path:` (khi muốn test trực tiếp source chưa publish)
-
-```yaml
-dependencies:
-  adflow_flutter:
-    path: ../path/to/flutter/adflow_flutter
-```
-
-(đường dẫn tùy vị trí thực tế của thư mục chứa plugin trên máy bạn).
-
-### Bước bắt buộc - khai báo repository JitPack
-
-`adflow_flutter` phụ thuộc `adflow-core`/`adflow-admob`, được publish qua [JitPack](https://jitpack.io) (`com.github.wzlibs.adflow:core`/`admob`). Gradle **không tự động** cho app tiêu thụ thấy được repository này chỉ vì plugin đã khai báo nó - dependency của 1 configuration chỉ resolve qua repositories khai báo ở project sở hữu configuration đó (ở đây là chính app của bạn), không "mượn" repository của plugin dù có quan hệ dependency trực tiếp. Nếu bỏ qua bước này, build sẽ báo `Could not find com.github.wzlibs.adflow:core:v0.7.0`.
-
-Thêm vào `android/build.gradle.kts` của app (theo đúng mẫu đang dùng ở `flutter/adflow_flutter/example/android/build.gradle.kts`):
+Add the package, set Android `minSdk` to 24, and add JitPack to the app's repositories:
 
 ```kotlin
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven("https://jitpack.io")
-    }
+repositories {
+    google()
+    mavenCentral()
+    maven("https://jitpack.io")
 }
 ```
 
-(nếu app của bạn dùng `dependencyResolutionManagement` trong `settings.gradle.kts` thay vì `allprojects{}` trong `build.gradle.kts`, thêm dòng `maven("https://jitpack.io")` tương tự vào đó).
-
-Plugin yêu cầu `minSdk = 24` - app tiêu thụ cũng phải khai `minSdk` tối thiểu 24.
-
-## 2. Khai báo AndroidManifest
-
-Thêm App ID AdMob vào `android/app/src/main/AndroidManifest.xml` của app:
+Add the AdMob app ID to `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
-<application ...>
-    <meta-data
-        android:name="com.google.android.gms.ads.APPLICATION_ID"
-        android:value="ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy" />
-</application>
+<meta-data
+    android:name="com.google.android.gms.ads.APPLICATION_ID"
+    android:value="ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy" />
 ```
 
-## 3. Khởi tạo trong `main()`
+## Initialize
+
+Declare every placement in one place. Ad unit lists are tried as a waterfall.
 
 ```dart
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AdFlowCore.initialize();
+  await AdFlow.initialize(
+    placements: const [
+      InterstitialPlacement(
+        'splash_interstitial',
+        adUnits: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
+        preload: false,
+      ),
+      InterstitialPlacement(
+        'global_interstitial',
+        adUnits: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
+      ),
+      AppOpenPlacement(
+        'app_open',
+        adUnits: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
+        autoShowOnForeground: true,
+      ),
+      RewardedPlacement(
+        'rewarded',
+        adUnits: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
+      ),
+      BannerPlacement(
+        'home_banner',
+        adUnits: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
+      ),
+      NativePlacement(
+        'home_native',
+        adUnits: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
+        rendererId: 'medium',
+      ),
+    ],
+  );
   runApp(const MyApp());
 }
 ```
 
-`AdFlowCore.initialize()` nên gọi ngay trong `main()`, vì đó là thời điểm sớm nhất chắc chắn app sắp hiển thị UI. Nếu app của bạn nhúng Flutter kiểu add-to-app (Dart entrypoint không đảm bảo luôn dẫn tới foreground), hãy tự gate lời gọi này tới khi chắc chắn app đang hiển thị.
+Use `showInterval`, `useLogcatLogger`, `consentDebugGeography`, and
+`consentDebugTestDeviceHashedIds` on `initialize` when those settings are needed. Consent debug
+settings must only be used for test devices.
 
-`initialize()` nhận thêm 2 tham số tùy chọn: `showIntervalConfig` (xem mục 7) và `useLogcatLogger` (mặc định `true`, log ra Logcat tag "AdFlowSDK").
+## Full-screen ads
 
-## 4. Khai báo Placements
-
-`adflow_flutter` không có sẵn 1 class "danh sách placement" - tự viết 1 class Dart phẳng (xem ví dụ đầy đủ ở `example/lib/ad_placements.dart`):
-
-```dart
-class AdPlacements {
-  final splashInterstitial = AdFlowInterstitialAd(const PlacementConfig(
-    placementId: 'splash_interstitial',
-    adUnitIds: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
-  ));
-
-  final appOpen = AdFlowAppOpenAd(const PlacementConfig(
-    placementId: 'app_open',
-    adUnitIds: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
-  ));
-
-  final rewarded = AdFlowRewardedAd(const PlacementConfig(
-    placementId: 'rewarded',
-    adUnitIds: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
-  ));
-
-  final banner = AdFlowBannerAd(const PlacementConfig(
-    placementId: 'home_banner',
-    adUnitIds: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
-  ));
-
-  final native = AdFlowNativeAd(const PlacementConfig(
-    placementId: 'home_native',
-    adUnitIds: ['ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy'],
-  ));
-}
-```
-
-`PlacementConfig` có `placementId`, `adUnitIds` (waterfall), `enabled`, `preloadEnabled`, `retryPolicy`, `expiryMs`. Plugin không hỗ trợ rule gating dạng callback tùy biến (kiểu `AdRule`/`loadRule`/`showRule` phía native đồng bộ) vì việc đó cần round-trip qua Platform Channel mỗi lần load/show, không phù hợp cho 1 điều kiện được gọi thường xuyên. Để tắt/bật ads có điều kiện (vd user mua VIP), gọi `setEnabled(bool)` trên từng đối tượng ad:
+Every handle exposes a stable `ValueListenable<AdState>`. `awaitReady` starts an idempotent load
+and returns on loaded, failed, or timeout, so splash screens do not need polling.
 
 ```dart
-await placements.splashInterstitial.setEnabled(!isVip);
-```
-
-`setEnabled(false)` chặn **cả `load()` lẫn hiển thị**, cho mọi loại ad - không chỉ `show()` của Interstitial/App Open/Rewarded, mà cả việc `load()` fetch ad mới (tránh tốn ad request ngầm vô ích khi đã tắt hẳn) và việc `AdFlowBannerAdView`/`AdFlowNativeAdView` render ad (kể cả khi build widget mà quên tự kiểm tra trạng thái VIP ở Dart). Trạng thái này chỉ tồn tại trong bộ nhớ (không tự lưu lại) - app tự lưu trạng thái VIP và gọi lại `setEnabled(false)` mỗi lần khởi động app, trước khi `loadAll()`.
-
-## 5. GDPR/quyền riêng tư (Consent)
-
-`adflow_flutter` bọc [Google User Messaging Platform (UMP)](https://developers.google.com/admob/android/privacy) - CMP chính thức của Google, tự phát hiện khu vực (EEA/UK) cần xin consent, app không cần tự viết logic phát hiện vùng.
-
-Đây là 1 primitive độc lập - gọi `AdFlowCore.requestConsentIfNeeded()` ở bất kỳ đâu/lúc nào tuỳ ý, không có vị trí bắt buộc:
-
-```dart
-unawaited(AdFlowCore.requestConsentIfNeeded().then((_) => placements.loadAll()));
-```
-
-**Không cần tự viết điều kiện check consent trước khi gọi `load()`** - `load()` (ở mọi loại ad) tự động tôn trọng consent. Gọi `load()` trước khi consent resolve chỉ fail an toàn (giống bị `enabled: false`), không crash, không mất placement - gọi lại `load()` sau khi `requestConsentIfNeeded()` hoàn tất là đủ để load thật.
-
-Chính sách AdMob/Google Play yêu cầu có lối vào để user xem lại/đổi consent đã chọn - chỉ hiện khi cần:
-
-```dart
-final requirement = await AdFlowCore.getPrivacyOptionsRequirement();
-if (requirement == PPrivacyOptionsRequirement.required) {
-  // hiện nút/menu "Privacy options", bấm vào gọi:
-  await AdFlowCore.showPrivacyOptionsForm();
-}
-```
-
-Để test flow EEA khi thiết bị test không ở EEA thật:
-
-```dart
-await AdFlowCore.requestConsentIfNeeded(
-  debugGeography: PDebugGeography.eea,
-  testDeviceHashedIds: ['TEST-DEVICE-HASHED-ID'],
-);
-```
-
-`debugGeography` chỉ có hiệu lực trên thiết bị đã được đăng ký làm test device qua `testDeviceHashedIds` - trên thiết bị chưa đăng ký, nó bị bỏ qua âm thầm (không lỗi, chỉ đơn giản chạy như production thật). Xem [hướng dẫn testing chính thức của Google](https://developers.google.com/admob/android/privacy#testing) để lấy đúng hashed ID cho thiết bị test của bạn.
-
-## 6. Hiển thị từng loại ad
-
-**Interstitial:**
-
-```dart
-await placements.globalInterstitial.load();
-if (await placements.globalInterstitial.isReady) {
-  await placements.globalInterstitial.show(
-    onAdDismissed: () { /* điều hướng tiếp */ },
-    onAdFailedToShow: (error) { /* fallback */ },
-    onShowBlocked: (reason) { /* bị chặn bởi show-interval hoặc setEnabled(false) */ },
+final ad = AdFlow.interstitial('splash_interstitial');
+final state = await ad.awaitReady(const Duration(seconds: 8));
+if (state is AdLoaded) {
+  await ad.show(
+    onDismissed: continueNavigation,
+    onFailedToShow: (error) => continueNavigation(),
+    onBlocked: (reason) => continueNavigation(),
   );
 }
-```
 
-**App Open** - có thể show thủ công như Interstitial, hoặc bật tự động show khi app quay lại foreground:
-
-```dart
-await placements.appOpen.enableAutoShowOnForeground();
-// ... và disableAutoShowOnForeground() nếu cần tắt lại
-```
-
-**Rewarded** - `show()` có thêm `onUserEarnedReward`:
-
-```dart
-await placements.rewarded.show(
-  onUserEarnedReward: (reward) {
-    // reward.type, reward.amount
-  },
+await AdFlow.rewarded('rewarded').show(
+  onUserEarnedReward: (reward) => grantReward(reward.amount),
 );
 ```
 
-**Banner:**
+States are `AdIdle`, `AdLoading`, `AdLoaded`, `AdFailed`, and `AdShowing`. Block reasons distinguish
+loading, no-fill, consent, rule rejection, interval throttling, and another full-screen ad.
+
+## Banner and native widgets
+
+The widgets react to placement state. No readiness polling, generation keys, or manual platform
+view recreation is required.
 
 ```dart
-Scaffold(
-  body: ...,
-  // Gọi thẳng, không check isReady trước - onShowBlocked bật cờ _bannerBlocked để ẩn widget
-  // này đi (bottomNavigationBar: null), và 1 vòng poll định kỳ tự bump Key để thử lại (xem ghi
-  // chú dưới và example/lib/home_screen.dart).
-  bottomNavigationBar: _bannerBlocked
-      ? null
-      : SafeArea(
-          child: AdFlowBannerAdView(
-            key: ValueKey(_bannerGeneration),
-            ad: placements.banner,
-            onShowBlocked: (reason) {
-              // PBlockReason.notReady hoặc .ruleRejected.
-              setState(() => _bannerBlocked = true);
-            },
-          ),
-        ),
+AdFlowBanner(
+  'home_banner',
+  loading: (_) => const SizedBox(height: 50, child: LinearProgressIndicator()),
+  failed: (_, error) => const SizedBox.shrink(),
 )
+
+AdFlowNative(
+  'home_native',
+  height: 250,
+  rendererId: 'medium',
+  loading: (_) => const SizedBox(height: 250, child: LinearProgressIndicator()),
+  failed: (_, error) => const SizedBox.shrink(),
+)
+
+await AdFlow.native('home_native').reload();
 ```
 
-Nên đặt banner ở `bottomNavigationBar` của `Scaffold` thay vì trực tiếp trong 1 `Column` - đã xác nhận qua test thật: đặt trong `Column` khiến banner đè lên nội dung phía trên (do kích thước ad thật không khớp hoàn toàn với `SizedBox` mặc định), trong khi `bottomNavigationBar` tự chừa chỗ, tránh đè lên bất kỳ nội dung nào. `AdFlowBannerAdView` có `height` mặc định `50` (khớp `AdSize.BANNER` mà `AdMobBannerAdManager` dùng cố định) - khi thử nghiệm, dùng đúng test Ad Unit ID cho banner **fixed-size** (`ca-app-pub-3940256099942544/6300978111`), không dùng ID **Adaptive Banner** (`ca-app-pub-3940256099942544/9214589741`) vì kích thước thật sẽ không khớp `AdSize.BANNER`, gây lệch layout.
+The Android `AdFlowBannerView` and `AdFlowNativeAdView` own attach, load, collapse, and rebind
+behavior. A successful native reload is reflected without changing the Flutter widget key.
 
-**Native:**
+## Global controls and consent
 
 ```dart
-if (!_nativeBlocked)
-  AdFlowNativeAdView(
-    key: ValueKey(_nativeGeneration),
-    ad: placements.native,
-    onShowBlocked: (reason) => setState(() => _nativeBlocked = true),
-  ),
-```
+await AdFlow.setAdsEnabled(!isPremium);
 
-`AdFlowNativeAdView` có `height` mặc định `250`, đủ cho renderer mặc định `DefaultMediumNativeAdRenderer` (headline + media + body + CTA) - đổi `height` phù hợp nếu dùng renderer khác.
-
-**Custom native ad UI (`rendererId`):** UI native ad mặc định là `DefaultMediumNativeAdRenderer` (Kotlin, phía native). Vì `NativeAdRenderer` trả về 1 `View` Android thật (cần cho AdMob gắn click-tracking qua `NativeAdView.setNativeAd()`), 1 layout tùy biến hoàn toàn phải viết bằng Kotlin - không mô tả được bằng Dart widget tree. Các bước:
-
-1. Viết 1 class Kotlin implement `NativeAdRenderer` (từ `adflow-core`), giống `DefaultMediumNativeAdRenderer`/`DefaultSmallNativeAdRenderer` (`adflow-admob`) làm mẫu - `createView(Context): View` trả về 1 `NativeAdView` chứa layout tùy ý, `bind(view, assets: NativeAdAssets)` gán dữ liệu (`headline`, `body`, `icon` - `Drawable?` đã decode sẵn từ `NativeAd.icon?.drawable`, `callToAction`, `starRating`, `advertiser`) vào các view con. Code này nằm trong app (module `android/app`), dùng trực tiếp `com.google.android.gms.ads.nativead.NativeAdView` - `adflow-admob` khai báo `play-services-ads` là `implementation` (không lộ transitive), nên phải tự thêm `implementation("com.google.android.gms:play-services-ads:<version>")` vào `android/app/build.gradle.kts` của app.
-2. Đăng ký renderer đó với 1 `rendererId` (String) trong `MainActivity.kt`, sau `super.configureFlutterEngine(...)`:
-   ```kotlin
-   override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-       super.configureFlutterEngine(flutterEngine)
-       AdflowFlutterPlugin.registerNativeAdRenderer(flutterEngine, "compactCard", MyCustomRenderer())
-   }
-   ```
-3. Chọn renderer đó từ Dart qua `rendererId`:
-   ```dart
-   AdFlowNativeAdView(ad: placements.feedNative, rendererId: 'compactCard', height: 100),
-   ```
-
-Có thể đăng ký **nhiều renderer khác nhau** (gọi `registerNativeAdRenderer` nhiều lần với `rendererId` khác nhau) và dùng cho nhiều native ad placement khác nhau trong cùng 1 app - `rendererId` hoàn toàn độc lập với `placementId`, không giới hạn 1 renderer/app hay 1 renderer/placement. Nếu `rendererId` truyền từ Dart không khớp renderer nào đã đăng ký (vd quên gọi `registerNativeAdRenderer`, hoặc gọi trước khi `AdflowFlutterPlugin` kịp attach), tự động fallback về `DefaultMediumNativeAdRenderer` và log cảnh báo ra Logcat - không crash app.
-
-`rendererId` không bắt buộc phải trỏ tới renderer tự viết - cũng đăng ký được renderer có sẵn trong `adflow-admob`, ví dụ `DefaultSmallNativeAdRenderer` (headline + icon + body, gọn hơn `DefaultMediumNativeAdRenderer` vì không có `MediaView`):
-```kotlin
-AdflowFlutterPlugin.registerNativeAdRenderer(flutterEngine, "small", DefaultSmallNativeAdRenderer())
-```
-Xem `example/android/app/.../MainActivity.kt` để có ví dụ đăng ký song song cả renderer có sẵn lẫn renderer tự viết.
-
-Với cả banner lẫn native: `AdFlowBannerAdView`/`AdFlowNativeAdView` luôn an toàn để gọi thẳng ngay, không cần `await ad.load()` hay check `isReady` trước - phía Kotlin không throw, chỉ render rỗng và báo qua `onShowBlocked` khi bị chặn (chưa `load()` xong, hoặc `showRule` từ chối). Nhưng platform view Android chỉ được tạo đúng 1 lần lúc build - nếu bị chặn ngay từ đầu, nó sẽ kẹt ở trạng thái rỗng mãi trừ khi được build lại với 1 `Key` mới. Pattern khuyến nghị (như 2 ví dụ trên): dùng `onShowBlocked` để đặt cờ `*Blocked`, bọc widget bằng `if (!blocked)` để ẩn nó đi, rồi poll định kỳ (`Future.delayed` lặp trong 1 vòng `while`) để reset cờ đó + bump 1 giá trị dùng làm `Key` khi còn đang bị chặn - ép Flutter build lại và tự thử tạo platform view lần nữa cho tới khi thành công. Xem `example/lib/home_screen.dart` (hàm `_retryWhileBlocked`) để có ví dụ đầy đủ, áp dụng cho cả 4 placement Banner/Native trong app mẫu.
-
-**Đổi sang native ad mới (`reload()`):** 1 native ad được cache và tái sử dụng vô thời hạn tới khi
-hết hạn (mặc định 4h) - `load()` sẽ no-op nếu ad đang cache vẫn còn hạn. Nếu muốn ép đổi sang ad
-mới dù ad cũ vẫn còn hạn (ví dụ: user rời màn hình đang hiển thị native ad rồi quay lại), gọi
-`await ad.reload()`, rồi tự ép Flutter tạo lại `AdFlowNativeAdView` (đổi 1 `Key`, vì nó không tự
-rebind sang ad mới):
-
-```dart
-final result = await placements.native.reload();
-if (result.success) {
-  setState(() => _nativeGeneration++); // dùng làm Key bên dưới
+final error = await AdFlow.requestConsentIfNeeded();
+final requirement = await AdFlow.getPrivacyOptionsRequirement();
+if (requirement == PrivacyOptionsRequirement.required) {
+  await AdFlow.showPrivacyOptionsForm();
 }
-...
-AdFlowNativeAdView(key: ValueKey(_nativeGeneration), ad: placements.native),
-```
 
-Điểm gọi khuyến nghị là `RouteAware.didPopNext()` (đăng ký 1 `RouteObserver` qua
-`navigatorObservers` của `MaterialApp`) - tức lúc màn hình đang hiển thị native ad quay lại visible
-sau khi route phía trên bị pop. Đây là quyết định của app, `reload()` không tự động phát hiện việc
-này. Nếu `reload()` thất bại, ad cũ vẫn giữ nguyên trong cache, không bị mất.
-
-## 7. Tùy chỉnh tần suất hiển thị
-
-```dart
-await AdFlowCore.initialize(
-  showIntervalConfig: const ShowIntervalConfig(
-    interstitialAfterInterstitialMs: 45000,
-    appOpenAfterAppOpenMs: 60000,
-    interstitialAfterAppOpenMs: 8000,
-    appOpenAfterInterstitialMs: 8000,
-  ),
-);
-```
-
-## 8. Theo dõi doanh thu (tùy chọn)
-
-```dart
-AdFlowCore.addRevenueLogger((event) {
-  // event.placementId, event.adType, event.adUnitId,
-  // event.valueMicros, event.currencyCode, event.precision, event.adNetwork
+AdFlow.addRevenueLogger((event) {
+  // Forward event to analytics or attribution.
 });
 ```
 
-## 9. Trước khi release
+`setAdsEnabled(false)` gates loading and showing for every placement. Re-enabling ads triggers a
+new demand-driven load for registered placements.
 
-Toàn bộ App ID/Ad Unit ID trong ví dụ ở tài liệu này là **ID test chính thức của Google**. Phải thay bằng ID thật trước khi phát hành - dùng ID test khi release sẽ vi phạm chính sách AdMob.
+## Custom native renderer
 
-## Giới hạn đã biết
+Implement native v2's `NativeAdRenderer` in the Android app:
 
-- `AdRule` (loadRule/showRule) không bridge qua channel được - chỉ hỗ trợ on/off qua `setEnabled()`; logic gating phức tạp hơn (cooldown, theo giờ...) phải tự viết ở tầng Dart.
-- Banner cố định `AdSize.BANNER` (320x50) - chưa hỗ trợ adaptive banner.
-- Tag JitPack trong `android/build.gradle.kts` (`com.github.wzlibs.adflow:core:v0.7.0`/`admob:v0.7.0`) phải bump thủ công mỗi khi `adflow-core`/`adflow-admob` ra tag mới - quên bump sẽ khiến plugin build với version cũ một cách âm thầm.
-- `show()` cần 1 `Activity` đang attach với Flutter engine - gọi quá sớm (chưa có Activity nào) sẽ báo `onShowBlocked(BlockReason.notReady)` thay vì hiển thị, không crash.
-- `RetryPolicy` mặc định retry **không giới hạn** khi no-fill (backoff tăng dần, trần 60s/lần) - `load()` sẽ không tự bỏ cuộc, cứ thử mãi cho tới khi có fill hoặc app tự huỷ theo cách khác (vd tắt placement qua `setEnabled(false)`). Cần tính vào UX loading nếu app hiển thị spinner chờ `load()`.
-- iOS: chưa hỗ trợ.
+```kotlin
+class CompactRenderer : NativeAdRenderer {
+    override fun onCreateView(context: Context, parent: ViewGroup): View =
+        NativeAdView(context) // Add and register asset views here.
 
-## Ví dụ đầy đủ
+    override fun onBind(view: View, assets: NativeAdAssets) {
+        // Bind headline, body, CTA, media, and other assets.
+    }
+}
+```
 
-Xem `example/` - demo app Flutter tương đương vai trò `:app` bên native, đã verify chạy được trên thiết bị thật (mọi loại ad load/show được, banner/native render đúng, switch Premium chặn được ads). Chạy `flutter run` trong thư mục `example/` để xem trực tiếp.
+Register it after `super.configureFlutterEngine` and use the same ID in a `NativePlacement` or
+`AdFlowNative` widget:
+
+```kotlin
+AdflowFlutterPlugin.registerNativeAdRenderer(flutterEngine, "compact", CompactRenderer())
+```
+
+Unknown renderer IDs fall back to `DefaultMediumNativeAdRenderer` with a Logcat warning.
+
+See `example/` for a complete integration using Google test ad unit IDs.

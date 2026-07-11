@@ -1,3 +1,14 @@
+## 1.0.0-alpha.1
+
+* Breaking rewrite for AdFlow native `v1.0.0-alpha01`.
+* Declare all placements once through `AdFlow.initialize`; removed v1 manager creation and
+  per-placement `setEnabled` APIs.
+* Added reactive `AdState` listenables, `awaitReady`, and unified full-screen show callbacks.
+* Added self-managing `AdFlowBanner` and `AdFlowNative` widgets. Polling, blocked flags, generation
+  keys, and manual native view rebinding are no longer required.
+* Added global `AdFlow.setAdsEnabled`, state streaming through Pigeon, v2 block reasons, and v2
+  native renderer support.
+
 ## 0.5.0
 
 * Bump the underlying `adflow-core`/`adflow-admob` dependency to `v0.7.0`. `showRule` on a

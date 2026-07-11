@@ -1,41 +1,36 @@
-import 'config.dart';
+import 'package:flutter/foundation.dart';
+
+import 'ad_flow_dispatcher.dart';
+import 'ad_state.dart';
 import 'generated/adflow_api.g.dart';
 import 'show_event_support.dart';
+import 'types.dart';
 
-/// Facade Dart cho 1 placement App Open. Giống [AdFlowInterstitialAd] về load/show, thêm
-/// [enableAutoShowOnForeground]/[disableAutoShowOnForeground] wrap `AppOpenAdController` thật phía
-/// Kotlin - tự show khi app quay lại foreground (ProcessLifecycleOwner), độc lập với vòng đời
-/// Flutter engine.
 class AdFlowAppOpenAd {
-  AdFlowAppOpenAd(PlacementConfig config) : placementId = config.placementId {
-    _hostApi.create(config.toPigeon());
-  }
+  AdFlowAppOpenAd(this.placementId);
 
   final String placementId;
-  static final AppOpenAdHostApi _hostApi = AppOpenAdHostApi();
+  static final AdHostApi _hostApi = AdHostApi();
 
-  Future<bool> get isReady => _hostApi.isReady(placementId);
-
-  Future<PLoadResult> load() => _hostApi.load(placementId);
-
-  Future<void> setEnabled(bool enabled) => _hostApi.setEnabled(placementId, enabled);
-
-  Future<void> enableAutoShowOnForeground() => _hostApi.startAutoShowOnForeground(placementId);
-
-  Future<void> disableAutoShowOnForeground() => _hostApi.stopAutoShowOnForeground(placementId);
+  ValueListenable<AdState> get state =>
+      AdFlowDispatcher.instance.stateOf(placementId);
+  Future<void> load() => _hostApi.load(placementId);
+  Future<AdState> awaitReady(Duration timeout) {
+    load();
+    return awaitTerminalAdState(state, timeout);
+  }
 
   Future<void> show({
-    void Function()? onAdShown,
-    void Function()? onAdDismissed,
-    void Function(PAdFlowError error)? onAdFailedToShow,
-    void Function(PBlockReason reason)? onShowBlocked,
-  }) =>
-      showEventFuture(
-        placementId,
-        onAdShown: onAdShown,
-        onAdDismissed: onAdDismissed,
-        onAdFailedToShow: onAdFailedToShow,
-        onShowBlocked: onShowBlocked,
-        invokeShow: _hostApi.show,
-      );
+    void Function()? onShown,
+    void Function()? onDismissed,
+    void Function(AdFlowError error)? onFailedToShow,
+    void Function(BlockReason reason)? onBlocked,
+  }) => showEventFuture(
+    placementId,
+    onAdShown: onShown,
+    onAdDismissed: onDismissed,
+    onAdFailedToShow: onFailedToShow,
+    onShowBlocked: onBlocked,
+    invokeShow: _hostApi.show,
+  );
 }

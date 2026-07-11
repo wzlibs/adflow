@@ -1,38 +1,38 @@
-import 'config.dart';
+import 'package:flutter/foundation.dart';
+
+import 'ad_flow_dispatcher.dart';
+import 'ad_state.dart';
 import 'generated/adflow_api.g.dart';
 import 'show_event_support.dart';
+import 'types.dart';
 
-/// Facade Dart cho 1 placement Rewarded. Giống [AdFlowInterstitialAd] nhưng `show()` có thêm
-/// [onUserEarnedReward] - gọi giữa chừng (không kết thúc Future) khi user xem xong đủ để nhận
-/// thưởng.
 class AdFlowRewardedAd {
-  AdFlowRewardedAd(PlacementConfig config) : placementId = config.placementId {
-    _hostApi.create(config.toPigeon());
-  }
+  AdFlowRewardedAd(this.placementId);
 
   final String placementId;
-  static final RewardedAdHostApi _hostApi = RewardedAdHostApi();
+  static final AdHostApi _hostApi = AdHostApi();
 
-  Future<bool> get isReady => _hostApi.isReady(placementId);
-
-  Future<PLoadResult> load() => _hostApi.load(placementId);
-
-  Future<void> setEnabled(bool enabled) => _hostApi.setEnabled(placementId, enabled);
+  ValueListenable<AdState> get state =>
+      AdFlowDispatcher.instance.stateOf(placementId);
+  Future<void> load() => _hostApi.load(placementId);
+  Future<AdState> awaitReady(Duration timeout) {
+    load();
+    return awaitTerminalAdState(state, timeout);
+  }
 
   Future<void> show({
-    void Function()? onAdShown,
-    void Function()? onAdDismissed,
-    void Function(PAdFlowError error)? onAdFailedToShow,
-    void Function(PBlockReason reason)? onShowBlocked,
-    void Function(PRewardItem reward)? onUserEarnedReward,
-  }) =>
-      showEventFuture(
-        placementId,
-        onAdShown: onAdShown,
-        onAdDismissed: onAdDismissed,
-        onAdFailedToShow: onAdFailedToShow,
-        onShowBlocked: onShowBlocked,
-        onUserEarnedReward: onUserEarnedReward,
-        invokeShow: _hostApi.show,
-      );
+    void Function()? onShown,
+    void Function()? onDismissed,
+    void Function(AdFlowError error)? onFailedToShow,
+    void Function(BlockReason reason)? onBlocked,
+    void Function(RewardItem reward)? onUserEarnedReward,
+  }) => showEventFuture(
+    placementId,
+    onAdShown: onShown,
+    onAdDismissed: onDismissed,
+    onAdFailedToShow: onFailedToShow,
+    onShowBlocked: onBlocked,
+    onUserEarnedReward: onUserEarnedReward,
+    invokeShow: _hostApi.show,
+  );
 }

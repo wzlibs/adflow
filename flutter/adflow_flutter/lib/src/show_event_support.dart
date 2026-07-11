@@ -14,16 +14,16 @@ Future<void> showEventFuture(
   void Function(PAdFlowError error)? onAdFailedToShow,
   void Function(PBlockReason reason)? onShowBlocked,
   void Function(PRewardItem reward)? onUserEarnedReward,
-  required void Function(String placementId) invokeShow,
+  required Future<void> Function(String placementId) invokeShow,
 }) {
   final completer = Completer<void>();
 
   void finish() {
-    FlutterApiDispatcher.instance.unregisterShowEventHandler(placementId);
+    AdFlowDispatcher.instance.unregisterShowEventHandler(placementId);
     if (!completer.isCompleted) completer.complete();
   }
 
-  FlutterApiDispatcher.instance.registerShowEventHandler(placementId, (
+  AdFlowDispatcher.instance.registerShowEventHandler(placementId, (
     kind,
     error,
     blockReason,
@@ -46,6 +46,12 @@ Future<void> showEventFuture(
     }
   });
 
-  invokeShow(placementId);
+  invokeShow(placementId).then<void>(
+    (_) {},
+    onError: (Object error, StackTrace stackTrace) {
+      AdFlowDispatcher.instance.unregisterShowEventHandler(placementId);
+      if (!completer.isCompleted) completer.completeError(error, stackTrace);
+    },
+  );
   return completer.future;
 }

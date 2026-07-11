@@ -16,11 +16,11 @@ import com.google.android.gms.ads.nativead.NativeAdView
  * bên phải), cố tình khác hẳn cấu trúc `DefaultMediumNativeAdRenderer` (dọc:
  * headline→media→body→cta) để chứng minh đây là renderer hoàn toàn khác, không phải style lại
  * renderer mặc định. Đăng ký qua `AdflowFlutterPlugin.registerNativeAdRenderer()` trong
- * [MainActivity], chọn từ Dart qua `AdFlowNativeAdView(rendererId: 'compactCard')`.
+ * [MainActivity], chọn từ Dart qua `AdFlowNative(rendererId: 'compactCard')`.
  */
 class CompactCardNativeAdRenderer : NativeAdRenderer {
 
-    override fun createView(context: Context): View {
+    override fun onCreateView(context: Context, parent: ViewGroup): View {
         val headline = TextView(context).apply { id = View.generateViewId() }
         val body = TextView(context).apply { id = View.generateViewId() }
         val cta = Button(context).apply { id = View.generateViewId() }
@@ -46,7 +46,7 @@ class CompactCardNativeAdRenderer : NativeAdRenderer {
         }
     }
 
-    override fun bind(view: View, assets: NativeAdAssets) {
+    override fun onBind(view: View, assets: NativeAdAssets) {
         val adView = view as NativeAdView
         (adView.headlineView as TextView).text = assets.headline
         (adView.bodyView as TextView).text = assets.body.orEmpty()

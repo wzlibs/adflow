@@ -1,73 +1,44 @@
 package com.adflow.adflow_flutter.platformview
 
 import android.content.Context
-import android.util.Log
-import android.view.View
-import android.widget.FrameLayout
-import com.adflow.admob.nativead.DefaultMediumNativeAdRenderer
-import com.adflow.adflow_flutter.PlacementRegistry
-import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
-import com.adflow.core.nativead.NativeAdManager
+import com.adflow.adflow_flutter.resolveRenderer
+import com.adflow.core.nativead.AdFlowNativeAdView
 import com.adflow.core.nativead.NativeAdRenderer
 import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
 
-private const val TAG = "AdFlowFlutter"
-
 /**
- * Giống [BannerPlatformViewFactory] nhưng cho Native ad. Chọn renderer qua `rendererId` trong
- * [args] - resolve bằng [resolveRenderer], khớp với renderer app đã đăng ký qua
- * `AdflowFlutterPlugin.registerNativeAdRenderer()`.
+ * Giống [BannerPlatformViewFactory] nhưng host [AdFlowNativeAdView] - tự resolve controller qua
+ * `AdFlow.nativeControllerImpl()`, tự load()/bind()/collapse/rebind (kể cả sau `reload()` từ
+ * Dart). `rendererId` trong [args] chỉ override renderer CHO RIÊNG WIDGET NÀY qua
+ * [resolveRenderer] - để null thì view dùng renderer mặc định của placement (đã khai trong DSL lúc
+ * `AdFlowHostApi.initialize()`, xem `AdFlowHostApiImpl`), không phải luôn ép về Medium.
  */
 class NativePlatformViewFactory(
-    private val registry: PlacementRegistry,
     private val renderers: Map<String, NativeAdRenderer>,
-    private val flutterApi: AdFlowFlutterApi,
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
         val map = args as? Map<*, *>
         val placementId = map?.get("placementId") as? String
         val rendererId = map?.get("rendererId") as? String
-        val manager = enabledManager(registry, placementId, registry.natives)
-        return NativePlatformView(context, manager, resolveRenderer(rendererId, renderers), placementId, flutterApi)
-    }
-}
-
-/**
- * Tách riêng khỏi [NativePlatformViewFactory.create] để test được bằng mock, không cần Robolectric.
- * `rendererId` null hoặc không khớp renderer nào đã đăng ký → fallback [DefaultMediumNativeAdRenderer]
- * (không bao giờ crash app vì thiếu đăng ký, khớp triết lý an toàn/fallback đã dùng cho `reload()`).
- */
-internal fun resolveRenderer(rendererId: String?, renderers: Map<String, NativeAdRenderer>): NativeAdRenderer {
-    if (rendererId == null) return DefaultMediumNativeAdRenderer()
-    return renderers[rendererId] ?: run {
-        Log.w(
-            TAG,
-            "Không tìm thấy NativeAdRenderer đã đăng ký cho rendererId='$rendererId' - dùng " +
-                "renderer mặc định. Kiểm tra đã gọi AdflowFlutterPlugin.registerNativeAdRenderer() " +
-                "trong MainActivity.configureFlutterEngine() trước khi tạo AdFlowNativeAdView với " +
-                "rendererId này chưa.",
-        )
-        DefaultMediumNativeAdRenderer()
+        return NativePlatformView(context, placementId, rendererId, renderers)
     }
 }
 
 private class NativePlatformView(
     context: Context,
-    manager: NativeAdManager?,
-    renderer: NativeAdRenderer,
     placementId: String?,
-    flutterApi: AdFlowFlutterApi,
+    rendererId: String?,
+    renderers: Map<String, NativeAdRenderer>,
 ) : PlatformView {
-    private val view: View = if (manager != null && placementId != null) {
-        manager.createView(context, renderer, showBlockedReporter(placementId, flutterApi))
-    } else {
-        FrameLayout(context)
+    private val view = AdFlowNativeAdView(context).apply {
+        this.placementId = placementId
+        if (rendererId != null) renderer = resolveRenderer(rendererId, renderers)
     }
 
-    override fun getView(): View = view
+    override fun getView() = view
 
     override fun dispose() {}
 }

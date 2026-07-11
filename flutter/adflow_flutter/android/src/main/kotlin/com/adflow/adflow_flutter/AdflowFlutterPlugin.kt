@@ -1,13 +1,10 @@
 package com.adflow.adflow_flutter
 
-import android.app.Activity
-import com.adflow.adflow_flutter.generated.AdFlowCoreHostApi
+import com.adflow.admob.nativead.DefaultMediumNativeAdRenderer
+import com.adflow.admob.nativead.DefaultSmallNativeAdRenderer
 import com.adflow.adflow_flutter.generated.AdFlowFlutterApi
-import com.adflow.adflow_flutter.generated.AppOpenAdHostApi
-import com.adflow.adflow_flutter.generated.BannerAdHostApi
-import com.adflow.adflow_flutter.generated.InterstitialAdHostApi
-import com.adflow.adflow_flutter.generated.NativeAdHostApi
-import com.adflow.adflow_flutter.generated.RewardedAdHostApi
+import com.adflow.adflow_flutter.generated.AdFlowHostApi
+import com.adflow.adflow_flutter.generated.AdHostApi
 import com.adflow.adflow_flutter.platformview.BannerPlatformViewFactory
 import com.adflow.adflow_flutter.platformview.NativePlatformViewFactory
 import com.adflow.core.nativead.NativeAdRenderer
@@ -20,25 +17,31 @@ private const val BANNER_VIEW_TYPE = "adflow/banner_ad_view"
 private const val NATIVE_VIEW_TYPE = "adflow/native_ad_view"
 
 /**
- * Entry point Android của AdFlow Flutter plugin. `show()` của mọi ad type cần 1 [Activity] hiện
- * tại - [ActivityAware] theo dõi Activity nào đang gắn với Flutter engine để cung cấp nó qua
- * [PlacementRegistry.currentActivity], độc lập với việc Flutter engine có bị detach/reattach (xoay
+ * Entry point Android của AdFlow Flutter plugin. `show()`/consent cần 1 [android.app.Activity]
+ * hiện tại - [ActivityAware] theo dõi Activity nào đang gắn với Flutter engine để cung cấp nó qua
+ * [FlutterBridgeState.currentActivity], độc lập với việc Flutter engine có bị detach/reattach (xoay
  * màn hình, multi-window...) hay không.
  */
 class AdflowFlutterPlugin : FlutterPlugin, ActivityAware {
 
-    private var registry: PlacementRegistry? = null
+    private var state: FlutterBridgeState? = null
 
     /** Renderer Kotlin do app đăng ký qua [registerNativeAdRenderer], khoá theo `rendererId` -
      * độc lập với `placementId`, cho phép nhiều native ad placement dùng nhiều UI khác nhau trong
      * cùng 1 app. Instance property (không phải trong companion) vì mỗi [FlutterEngine] có 1
-     * [AdflowFlutterPlugin] riêng - an toàn khi app chạy nhiều engine cùng lúc (add-to-app). */
-    private val nativeAdRenderers = mutableMapOf<String, NativeAdRenderer>()
+     * [AdflowFlutterPlugin] riêng - an toàn khi app chạy nhiều engine cùng lúc (add-to-app). Đã
+     * sẵn "medium"/"small" trỏ tới 2 renderer dựng sẵn của adflow-admob - app có thể ghi đè nếu
+     * muốn 1 giao diện khác cho id này. */
+    private val nativeAdRenderers = mutableMapOf<String, NativeAdRenderer>(
+        "medium" to DefaultMediumNativeAdRenderer(),
+        "small" to DefaultSmallNativeAdRenderer(),
+    )
 
     companion object {
         /** Đăng ký 1 [NativeAdRenderer] Kotlin app tự viết, chọn được từ Dart qua tham số
-         * `rendererId` của `AdFlowNativeAdView`. Gọi trong `MainActivity.configureFlutterEngine()`,
-         * sau `super.configureFlutterEngine(flutterEngine)` (để plugin đã kịp [onAttachedToEngine]). */
+         * `rendererId` của `NativePlacement`/`AdFlowNative`. Gọi trong
+         * `MainActivity.configureFlutterEngine()`, sau `super.configureFlutterEngine(flutterEngine)`
+         * (để plugin đã kịp [onAttachedToEngine]). */
         fun registerNativeAdRenderer(flutterEngine: FlutterEngine, rendererId: String, renderer: NativeAdRenderer) {
             val plugin = flutterEngine.plugins.get(AdflowFlutterPlugin::class.java) as? AdflowFlutterPlugin
                 ?: throw IllegalStateException(
@@ -56,52 +59,38 @@ class AdflowFlutterPlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        val registry = PlacementRegistry(binding.applicationContext)
-        this.registry = registry
+        val newState = FlutterBridgeState(binding.applicationContext)
+        this.state = newState
 
         val flutterApi = AdFlowFlutterApi(binding.binaryMessenger)
 
-        AdFlowCoreHostApi.setUp(binding.binaryMessenger, AdFlowCoreHostApiImpl(registry, flutterApi))
-        InterstitialAdHostApi.setUp(binding.binaryMessenger, InterstitialAdHostApiImpl(registry, flutterApi))
-        AppOpenAdHostApi.setUp(binding.binaryMessenger, AppOpenAdHostApiImpl(registry, flutterApi))
-        RewardedAdHostApi.setUp(binding.binaryMessenger, RewardedAdHostApiImpl(registry, flutterApi))
-        BannerAdHostApi.setUp(binding.binaryMessenger, BannerAdHostApiImpl(registry))
-        NativeAdHostApi.setUp(binding.binaryMessenger, NativeAdHostApiImpl(registry))
+        AdFlowHostApi.setUp(binding.binaryMessenger, AdFlowHostApiImpl(newState, flutterApi, nativeAdRenderers))
+        AdHostApi.setUp(binding.binaryMessenger, AdHostApiImpl(newState, flutterApi))
 
-        binding.platformViewRegistry.registerViewFactory(
-            BANNER_VIEW_TYPE,
-            BannerPlatformViewFactory(registry, flutterApi),
-        )
-        binding.platformViewRegistry.registerViewFactory(
-            NATIVE_VIEW_TYPE,
-            NativePlatformViewFactory(registry, nativeAdRenderers, flutterApi),
-        )
+        binding.platformViewRegistry.registerViewFactory(BANNER_VIEW_TYPE, BannerPlatformViewFactory())
+        binding.platformViewRegistry.registerViewFactory(NATIVE_VIEW_TYPE, NativePlatformViewFactory(nativeAdRenderers))
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         // Pigeon setUp(binaryMessenger, null) để gỡ đăng ký sạch sẽ khi engine detach.
-        AdFlowCoreHostApi.setUp(binding.binaryMessenger, null)
-        InterstitialAdHostApi.setUp(binding.binaryMessenger, null)
-        AppOpenAdHostApi.setUp(binding.binaryMessenger, null)
-        RewardedAdHostApi.setUp(binding.binaryMessenger, null)
-        BannerAdHostApi.setUp(binding.binaryMessenger, null)
-        NativeAdHostApi.setUp(binding.binaryMessenger, null)
-        registry = null
+        AdFlowHostApi.setUp(binding.binaryMessenger, null)
+        AdHostApi.setUp(binding.binaryMessenger, null)
+        state = null
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        registry?.currentActivity = binding.activity
+        state?.currentActivity = binding.activity
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        registry?.currentActivity = binding.activity
+        state?.currentActivity = binding.activity
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        registry?.currentActivity = null
+        state?.currentActivity = null
     }
 
     override fun onDetachedFromActivity() {
-        registry?.currentActivity = null
+        state?.currentActivity = null
     }
 }

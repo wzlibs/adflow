@@ -78,8 +78,8 @@ kotlin {
 dependencies {
     // Tag JitPack (không phải adflowVersion trong gradle.properties ở repo gốc) - bump khi
     // adflow-core/adflow-admob có tag mới (xem RELEASING.md ở root repo).
-    api("com.github.wzlibs.adflow:core:v0.7.0")
-    api("com.github.wzlibs.adflow:admob:v0.7.0")
+    api("com.github.wzlibs.adflow:core:v1.0.0-alpha01")
+    api("com.github.wzlibs.adflow:admob:v1.0.0-alpha01")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")

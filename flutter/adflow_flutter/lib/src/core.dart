@@ -1,61 +1,68 @@
-import 'config.dart';
-import 'flutter_api_dispatcher.dart';
+import 'ad_flow_dispatcher.dart';
+import 'app_open_ad.dart';
+import 'banner_ad.dart';
 import 'generated/adflow_api.g.dart';
+import 'interstitial_ad.dart';
+import 'native_ad.dart';
+import 'placements.dart';
+import 'rewarded_ad.dart';
+import 'types.dart';
 
-/// Entry point cấu hình toàn cục của AdFlow.
-class AdFlowCore {
-  AdFlowCore._();
+/// Entry point for configuring and accessing AdFlow placements.
+class AdFlow {
+  AdFlow._();
 
-  static final AdFlowCoreHostApi _hostApi = AdFlowCoreHostApi();
+  static final AdFlowHostApi _hostApi = AdFlowHostApi();
   static bool _initialized = false;
 
-  /// Khởi tạo AdFlow - gọi đúng 1 lần trong `main()`, sau `WidgetsFlutterBinding.ensureInitialized()`.
-  ///
-  /// Không đi qua cơ chế `AdFlowCore.runOnFirstForeground` phía native nữa: `main()` của 1 app
-  /// Flutter chạy về cơ bản đã đồng nghĩa app sắp có UI - khác `Application.onCreate()` thuần
-  /// Android, nơi process có thể được OS đánh thức chỉ để xử lý việc nền (vd FCM push) mà không hề
-  /// có Activity nào sắp hiển thị. Đây là đơn giản hoá có chủ đích: app nhúng Flutter theo kiểu
-  /// add-to-app (Dart entrypoint không đảm bảo luôn foreground) cần tự gate lời gọi này sau khi
-  /// biết chắc app đang ở foreground.
   static Future<void> initialize({
-    ShowIntervalConfig showIntervalConfig = const ShowIntervalConfig(),
+    required List<Placement> placements,
+    ShowIntervalConfig showInterval = const ShowIntervalConfig(),
     bool useLogcatLogger = true,
+    DebugGeography? consentDebugGeography,
+    List<String> consentDebugTestDeviceHashedIds = const [],
   }) async {
     if (_initialized) return;
     _initialized = true;
-    FlutterApiDispatcher.instance.ensureSetUp();
-    await _hostApi.configure(showIntervalConfig.toPigeon(), useLogcatLogger);
-    await _hostApi.initializeProvider();
+    AdFlowDispatcher.instance.ensureSetUp();
+    await _hostApi.initialize(
+      placements.map((placement) => placement.toPigeon()).toList(),
+      showInterval.toPigeon(),
+      useLogcatLogger,
+      consentDebugGeography,
+      consentDebugTestDeviceHashedIds,
+    );
     await _hostApi.addRevenueLogger();
   }
 
-  static Future<bool> get isShowingFullScreenAd => _hostApi.isShowingFullScreenAd();
+  static Future<void> setAdsEnabled(bool enabled) =>
+      _hostApi.setAdsEnabled(enabled);
 
-  /// Đăng ký lắng nghe sự kiện doanh thu (AdMob paid event) để forward sang Adjust/Firebase/...
-  /// Có thể gọi nhiều lần để thêm nhiều listener độc lập.
-  static void addRevenueLogger(void Function(PAdRevenueEvent event) onRevenuePaid) {
-    FlutterApiDispatcher.instance.addRevenueListener(onRevenuePaid);
+  static bool get isShowingFullScreenAd =>
+      AdFlowDispatcher.instance.isShowingFullScreenAd;
+
+  static void addRevenueLogger(void Function(AdRevenueEvent event) listener) {
+    AdFlowDispatcher.instance.addRevenueListener(listener);
   }
 
-  // GDPR/consent (xem README) - đây là 1 primitive độc lập, gọi ở bất kỳ đâu/lúc nào tuỳ ý, không
-  // có vị trí bắt buộc. Không cần tự viết điều kiện check consent trước khi load() - load() tự
-  // động tôn trọng consent, gọi trước khi consent resolve chỉ fail an toàn.
-  static Future<PConsentStatus> getConsentStatus() => _hostApi.getConsentStatus();
+  static AdFlowInterstitialAd interstitial(String placementId) =>
+      AdFlowInterstitialAd(placementId);
+  static AdFlowAppOpenAd appOpen(String placementId) =>
+      AdFlowAppOpenAd(placementId);
+  static AdFlowRewardedAd rewarded(String placementId) =>
+      AdFlowRewardedAd(placementId);
+  static AdFlowBannerAd banner(String placementId) =>
+      AdFlowBannerAd(placementId);
+  static AdFlowNativeAd native(String placementId) =>
+      AdFlowNativeAd(placementId);
 
-  static Future<PPrivacyOptionsRequirement> getPrivacyOptionsRequirement() =>
+  static Future<ConsentStatus> getConsentStatus() =>
+      _hostApi.getConsentStatus();
+  static Future<PrivacyOptionsRequirement> getPrivacyOptionsRequirement() =>
       _hostApi.getPrivacyOptionsRequirement();
-
   static Future<bool> canRequestAds() => _hostApi.canRequestAds();
-
-  /// Xin consent nếu cần (no-op nếu ngoài khu vực cần, ví dụ ngoài EEA/UK). [debugGeography]/
-  /// [testDeviceHashedIds] chỉ dùng để test flow EEA khi thiết bị test không ở EEA thật - để
-  /// mặc định (null/rỗng) cho production.
-  static Future<PAdFlowError?> requestConsentIfNeeded({
-    PDebugGeography? debugGeography,
-    List<String> testDeviceHashedIds = const [],
-  }) => _hostApi.requestConsentIfNeeded(debugGeography, testDeviceHashedIds);
-
-  /// Cho user xem lại/đổi lựa chọn consent đã có - chỉ nên gọi khi
-  /// [getPrivacyOptionsRequirement] trả về [PPrivacyOptionsRequirement.required].
-  static Future<PAdFlowError?> showPrivacyOptionsForm() => _hostApi.showPrivacyOptionsForm();
+  static Future<AdFlowError?> requestConsentIfNeeded() =>
+      _hostApi.requestConsentIfNeeded();
+  static Future<AdFlowError?> showPrivacyOptionsForm() =>
+      _hostApi.showPrivacyOptionsForm();
 }

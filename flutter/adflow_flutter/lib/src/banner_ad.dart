@@ -1,83 +1,60 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-import 'config.dart';
-import 'flutter_api_dispatcher.dart';
+import 'ad_flow_dispatcher.dart';
+import 'ad_state.dart';
 import 'generated/adflow_api.g.dart';
+import 'types.dart';
 
 const _bannerViewType = 'adflow/banner_ad_view';
 
-/// Facade Dart cho 1 placement Banner. Không có `show()`/`getView()` như bản Kotlin thuần - dùng
-/// [AdFlowBannerAdView] (PlatformView) để render sau khi [load] hoàn tất.
 class AdFlowBannerAd {
-  AdFlowBannerAd(PlacementConfig config) : placementId = config.placementId {
-    _hostApi.create(config.toPigeon());
-  }
+  AdFlowBannerAd(this.placementId);
 
   final String placementId;
-  static final BannerAdHostApi _hostApi = BannerAdHostApi();
+  static final AdHostApi _hostApi = AdHostApi();
 
-  Future<bool> get isReady => _hostApi.isReady(placementId);
-
-  Future<PLoadResult> load() => _hostApi.load(placementId);
-
-  Future<void> setEnabled(bool enabled) => _hostApi.setEnabled(placementId, enabled);
+  ValueListenable<AdState> get state =>
+      AdFlowDispatcher.instance.stateOf(placementId);
+  Future<void> load() => _hostApi.load(placementId);
 }
 
-/// Render [ad] qua `PlatformView` Android thật (`BannerAdManager.getView()`). Luôn an toàn để
-/// build ngay, không cần `await ad.load()` hay check `isReady` trước - phía Kotlin không throw,
-/// chỉ render 1 View rỗng và báo lý do qua [onShowBlocked] khi bị chặn. Nhưng platform view chỉ
-/// được tạo đúng 1 lần lúc build - nếu bị chặn ngay từ đầu, nó sẽ kẹt ở trạng thái rỗng mãi trừ
-/// khi được build lại với 1 [Key] mới. Pattern khuyến nghị: dùng [onShowBlocked] để đặt cờ "đang
-/// bị chặn" (ẩn widget này đi), rồi poll định kỳ để bump 1 giá trị dùng làm [Key] khi còn đang bị
-/// chặn, ép build lại và tự thử lần nữa cho tới khi thành công - xem
-/// `example/lib/home_screen.dart` để có ví dụ đầy đủ.
-class AdFlowBannerAdView extends StatefulWidget {
-  const AdFlowBannerAdView({super.key, required this.ad, this.height = 50, this.onShowBlocked});
+class AdFlowBanner extends StatelessWidget {
+  const AdFlowBanner(
+    this.placementId, {
+    super.key,
+    this.height = 50,
+    this.loading,
+    this.failed,
+  });
 
-  final AdFlowBannerAd ad;
+  final String placementId;
   final double height;
-
-  /// Gọi lại khi banner không hiển thị được (chưa `load()` xong - [PBlockReason.notReady], hoặc
-  /// `showRule` đang từ chối - [PBlockReason.ruleRejected]). Tuỳ chọn - bỏ qua nếu không cần biết
-  /// lý do.
-  final void Function(PBlockReason reason)? onShowBlocked;
-
-  @override
-  State<AdFlowBannerAdView> createState() => _AdFlowBannerAdViewState();
-}
-
-class _AdFlowBannerAdViewState extends State<AdFlowBannerAdView> {
-  @override
-  void initState() {
-    super.initState();
-    FlutterApiDispatcher.instance.registerShowEventHandler(widget.ad.placementId, (
-      kind,
-      error,
-      blockReason,
-      reward,
-    ) {
-      if (kind == PShowEventKind.showBlocked && blockReason != null) {
-        widget.onShowBlocked?.call(blockReason);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    FlutterApiDispatcher.instance.unregisterShowEventHandler(widget.ad.placementId);
-    super.dispose();
-  }
+  final WidgetBuilder? loading;
+  final Widget Function(BuildContext context, AdFlowError error)? failed;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: widget.height,
-      child: AndroidView(
-        viewType: _bannerViewType,
-        creationParams: {'placementId': widget.ad.placementId},
-        creationParamsCodec: const StandardMessageCodec(),
-      ),
+    final ad = AdFlowBannerAd(placementId);
+    return ValueListenableBuilder<AdState>(
+      valueListenable: ad.state,
+      builder: (context, state, _) {
+        if (state case AdFailed(:final error)) {
+          return failed?.call(context, error) ?? const SizedBox.shrink();
+        }
+        if (state is! AdLoaded) {
+          return loading?.call(context) ?? const SizedBox.shrink();
+        }
+        return SizedBox(
+          height: height,
+          child: AndroidView(
+            viewType: _bannerViewType,
+            creationParams: {'placementId': placementId},
+            creationParamsCodec: const StandardMessageCodec(),
+          ),
+        );
+      },
     );
   }
 }

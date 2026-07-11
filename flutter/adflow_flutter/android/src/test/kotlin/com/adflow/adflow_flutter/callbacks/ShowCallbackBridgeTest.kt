@@ -16,11 +16,11 @@ import org.mockito.kotlin.verify
 class ShowCallbackBridgeTest {
 
     @Test
-    fun `onAdShown forwards SHOWN with no error, blockReason or reward`() {
+    fun `onAdShowed forwards SHOWN with no error, blockReason or reward`() {
         val flutterApi = mock<AdFlowFlutterApi>()
         val bridge = ShowCallbackBridge("p1", flutterApi)
 
-        bridge.onAdShown()
+        bridge.onAdShowed()
 
         verify(flutterApi).onShowEvent(eq("p1"), eq(PShowEventKind.SHOWN), eq(null), eq(null), eq(null), any())
     }
@@ -53,11 +53,11 @@ class ShowCallbackBridgeTest {
     }
 
     @Test
-    fun `onShowBlocked forwards the mapped block reason`() {
+    fun `onAdBlocked forwards the mapped block reason`() {
         val flutterApi = mock<AdFlowFlutterApi>()
         val bridge = ShowCallbackBridge("p1", flutterApi)
 
-        bridge.onShowBlocked(BlockReason.INTERVAL_NOT_ELAPSED)
+        bridge.onAdBlocked(BlockReason.INTERVAL_NOT_ELAPSED)
 
         verify(flutterApi).onShowEvent(
             eq("p1"),
