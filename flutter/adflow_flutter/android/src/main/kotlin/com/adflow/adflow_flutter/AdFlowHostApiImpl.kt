@@ -104,12 +104,8 @@ class AdFlowHostApiImpl(
                         renderer = resolveRenderer(p.rendererId, nativeAdRenderers)
                     }
                     PAdType.BANNER -> banner(p.placementId) {
-                        adUnits(*p.adUnitIds.toTypedArray())
-                        preload = p.preload
-                        retryPolicy = p.retryPolicy.toCore()
+                        applyBase(this, p)
                         size = p.bannerSize?.toCore() ?: BannerSize.ADAPTIVE
-                        loadWhen(state::isEnabled)
-                        showWhen(state::isEnabled)
                     }
                 }
             }
