@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import 'ad_flow_dispatcher.dart';
 import 'ad_state.dart';
+import 'ad_state_effects.dart';
 import 'generated/adflow_api.g.dart';
 import 'types.dart';
 
@@ -31,6 +32,9 @@ class AdFlowBanner extends StatelessWidget {
     this.height = 50,
     this.loading,
     this.failed,
+    this.onLoading,
+    this.onLoaded,
+    this.onError,
   });
 
   final String placementId;
@@ -38,12 +42,27 @@ class AdFlowBanner extends StatelessWidget {
   final WidgetBuilder? loading;
   final Widget Function(BuildContext context, AdFlowError error)? failed;
 
+  /// Side-effect (vd `setState()` cho 1 biến khác) khi ad chưa sẵn sàng (gồm cả `AdIdle` lẫn
+  /// `AdLoading`) - khác [loading] (trả về Widget, chạy trong lúc build, không an toàn để làm
+  /// side-effect). Luôn chạy sau khi frame hiện tại build xong.
+  final VoidCallback? onLoading;
+
+  /// Side-effect khi ad đã load xong (`AdLoaded`). Khác [failed]/[loading] - xem [onLoading].
+  final VoidCallback? onLoaded;
+
+  /// Side-effect khi 1 lượt load thất bại (`AdFailed`). Khác [failed] (trả về Widget) - xem
+  /// [onLoading].
+  final void Function(AdFlowError error)? onError;
+
   @override
   Widget build(BuildContext context) {
     final ad = AdFlowBannerAd(placementId);
-    return ValueListenableBuilder<AdState>(
-      valueListenable: ad.state,
-      builder: (context, state, _) {
+    return AdStateEffects(
+      state: ad.state,
+      onLoading: onLoading,
+      onLoaded: onLoaded,
+      onError: onError,
+      builder: (context, state) {
         if (state case AdFailed(:final error)) {
           return failed?.call(context, error) ?? const SizedBox.shrink();
         }

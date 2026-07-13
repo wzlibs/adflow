@@ -73,4 +73,94 @@ void main() {
     );
     expect(find.text('native loading'), findsOneWidget);
   });
+
+  testWidgets(
+    'AdFlowNative onLoading/onLoaded/onError fire once per phase, and setState inside them is safe',
+    (tester) async {
+      const id = 'native_effects_test';
+      final dispatcher = AdFlowDispatcher.instance;
+      var loadingCount = 0;
+      var loadedCount = 0;
+      var errorCount = 0;
+      AdFlowError? lastError;
+      var setStateRuns = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) => AdFlowNative(
+              id,
+              onLoading: () => setState(() {
+                loadingCount++;
+                setStateRuns++;
+              }),
+              onLoaded: () => setState(() {
+                loadedCount++;
+                setStateRuns++;
+              }),
+              onError: (error) => setState(() {
+                errorCount++;
+                lastError = error;
+                setStateRuns++;
+              }),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(); // flush post-frame callback từ initState (state ban đầu = Idle)
+      expect(loadingCount, 1); // Idle tính vào nhóm "loading"
+
+      dispatcher.onAdState(id, PAdState(kind: PAdStateKind.loading));
+      await tester.pump();
+      expect(loadingCount, 1); // vẫn cùng nhóm loading - không bắn lại
+
+      dispatcher.onAdState(
+        id,
+        PAdState(kind: PAdStateKind.loaded, loadedAtMs: 1),
+      );
+      await tester.pump();
+      expect(loadedCount, 1);
+
+      dispatcher.onAdState(
+        id,
+        PAdState(
+          kind: PAdStateKind.failed,
+          error: PAdFlowError(code: 1, message: 'boom'),
+          willRetry: false,
+        ),
+      );
+      await tester.pump();
+      expect(errorCount, 1);
+      expect(lastError?.message, 'boom');
+
+      expect(setStateRuns, 3); // chứng minh setState() chạy 3 lần mà không throw
+    },
+  );
+
+  testWidgets('AdFlowBanner onLoading/onLoaded fire as state changes', (
+    tester,
+  ) async {
+    const id = 'banner_effects_test';
+    final dispatcher = AdFlowDispatcher.instance;
+    var loadingCount = 0;
+    var loadedCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) => AdFlowBanner(
+            id,
+            onLoading: () => setState(() => loadingCount++),
+            onLoaded: () => setState(() => loadedCount++),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(loadingCount, 1);
+
+    dispatcher.onAdState(id, PAdState(kind: PAdStateKind.loaded, loadedAtMs: 1));
+    await tester.pump();
+    expect(loadedCount, 1);
+  });
 }
