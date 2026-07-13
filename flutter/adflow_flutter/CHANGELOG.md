@@ -1,4 +1,4 @@
-## Unreleased
+## 2.0.0
 
 * **BREAKING**: removed the global `AdFlow.setAdsEnabled(bool)`. Restored the v1 per-placement
   `setEnabled(bool)` instead, now on every ad handle
@@ -7,6 +7,13 @@
   can leave a rewarded placement showing while disabling everything else. No `adflow-core` change
   needed - both the old global flag and the new per-placement map work by feeding
   `loadWhen`/`showWhen` (already-existing native `AdRule` hooks), just scoped differently.
+* Added `onLoading`/`onLoaded`/`onError` to `AdFlowNative`/`AdFlowBanner` - side-effect callbacks
+  (safe to call `setState()` inside them) that fire alongside the existing `loading`/`failed`
+  widget builders, which run during Flutter's build phase and are not a safe place for side
+  effects.
+* Bump the underlying `adflow-core`/`adflow-admob` dependency to `v1.0.0-alpha03` (internal fix:
+  `AppOpenForegroundObserver` now defers entirely to `AppOpenAd.canShow` instead of duplicating a
+  subset of its checks - no API change).
 
 ## 1.0.0
 
