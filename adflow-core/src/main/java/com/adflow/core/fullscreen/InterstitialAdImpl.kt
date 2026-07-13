@@ -32,6 +32,7 @@ internal class InterstitialAdImpl(
 
     override val state: StateFlow<AdState> get() = engine.state
     override val isReady: Boolean get() = engine.isReady
+    override val canShow: Boolean get() = evaluateShowGate(placementId, config, engine, runtime) == null
 
     override fun load() = engine.ensureLoaded()
     override fun addListener(listener: AdListener) = engine.addListener(listener)

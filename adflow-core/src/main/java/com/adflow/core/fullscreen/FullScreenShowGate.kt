@@ -12,6 +12,29 @@ import com.adflow.core.network.LoadedFullScreenAd
 import com.adflow.core.rewarded.RewardItem
 
 /**
+ * Tính gate không mutate cho show(): showRule -> interval -> slot đang rảnh -> ad sẵn sàng, đúng
+ * thứ tự mà [showFullScreenAd] chặn thật. Dùng chung bởi [showFullScreenAd] (chặn thật + mutate)
+ * và `FullScreenAd.canShow` (chỉ hỏi, không mutate) để 2 nơi không bao giờ lệch nhau.
+ *
+ * Không gồm [BlockReason.CONSENT_REQUIRED]: lý do đó chỉ áp dụng cho load() (xem
+ * [AdLoadEngine.passesGates]), không thuộc chuỗi chặn của show().
+ */
+internal fun evaluateShowGate(
+    placementId: String,
+    config: PlacementConfig,
+    engine: AdLoadEngine<LoadedFullScreenAd>,
+    runtime: AdFlowRuntime,
+): BlockReason? {
+    if (config.showRule?.isAllowed(placementId) == false) return BlockReason.RULE_REJECTED
+    if (!runtime.showIntervalPolicy.canShow(config.adType)) return BlockReason.INTERVAL_NOT_ELAPSED
+    if (runtime.fullScreenSlot.isShowing) return BlockReason.ANOTHER_AD_SHOWING
+    if (!engine.isReady) {
+        return if (engine.state.value is AdState.Loading) BlockReason.STILL_LOADING else BlockReason.NO_AD_AVAILABLE
+    }
+    return null
+}
+
+/**
  * Logic `show()` dùng chung cho Interstitial/App Open/Rewarded - 3 loại này chỉ khác nhau ở hình
  * dạng callback app truyền vào ([FullScreenCallback] hay `RewardedAdCallback` có thêm
  * `onUserEarnedReward`), không khác gì ở thứ tự gate hay cách nối vào [LoadedFullScreenAd]. Mỗi
@@ -37,30 +60,33 @@ internal fun showFullScreenAd(
 ) {
     val adType = config.adType
 
-    fun blocked(reason: BlockReason, detail: String) {
-        runtime.logger.log(placementId, adType, AdFlowEvent.SHOW_BLOCKED, detail)
+    fun blocked(reason: BlockReason) {
+        runtime.logger.log(placementId, adType, AdFlowEvent.SHOW_BLOCKED, reason.name)
         onBlocked(reason)
     }
 
-    if (config.showRule?.isAllowed(placementId) == false) {
-        blocked(BlockReason.RULE_REJECTED, "showRule rejected")
-        return
-    }
-    if (!runtime.showIntervalPolicy.canShow(adType)) {
-        blocked(BlockReason.INTERVAL_NOT_ELAPSED, "interval not elapsed")
-        return
-    }
-    if (!runtime.fullScreenSlot.tryClaim()) {
-        blocked(BlockReason.ANOTHER_AD_SHOWING, "another full-screen ad is showing")
+    val gateReason = evaluateShowGate(placementId, config, engine, runtime)
+    if (gateReason != null) {
+        blocked(gateReason)
+        if (gateReason == BlockReason.STILL_LOADING || gateReason == BlockReason.NO_AD_AVAILABLE) {
+            // Self-heal: không để placement kẹt mãi ở not-ready - vô hại nếu đã có 1 lần load đang chạy.
+            engine.ensureLoaded()
+        }
         return
     }
 
+    // evaluateShowGate() vừa xác nhận slot rảnh + ad sẵn sàng - giữ nguyên claim/take + nhánh
+    // fallback gốc bên dưới (thay vì crash) để không đổi hành vi observable, và để an toàn nếu sau
+    // này gate được gọi từ ngữ cảnh khác (đa luồng, hoặc có bước async chen giữa evaluate và claim).
+    if (!runtime.fullScreenSlot.tryClaim()) {
+        blocked(BlockReason.ANOTHER_AD_SHOWING)
+        return
+    }
     val ad = engine.take()
     if (ad == null) {
         runtime.fullScreenSlot.release()
         val reason = if (engine.state.value is AdState.Loading) BlockReason.STILL_LOADING else BlockReason.NO_AD_AVAILABLE
-        blocked(reason, "not ready")
-        // Self-heal: không để placement kẹt mãi ở not-ready - vô hại nếu đã có 1 lần load đang chạy.
+        blocked(reason)
         engine.ensureLoaded()
         return
     }

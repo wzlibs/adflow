@@ -6,6 +6,7 @@ import com.adflow.core.AdState
 import com.adflow.core.config.PlacementConfig
 import com.adflow.core.engine.AdFlowRuntime
 import com.adflow.core.engine.AdLoadEngine
+import com.adflow.core.fullscreen.evaluateShowGate
 import com.adflow.core.fullscreen.showFullScreenAd
 import com.adflow.core.network.AdRequestInfo
 import com.adflow.core.network.FullScreenAdSource
@@ -33,6 +34,7 @@ internal class RewardedAdImpl(
 
     override val state: StateFlow<AdState> get() = engine.state
     override val isReady: Boolean get() = engine.isReady
+    override val canShow: Boolean get() = evaluateShowGate(placementId, config, engine, runtime) == null
 
     override fun load() = engine.ensureLoaded()
     override fun addListener(listener: AdListener) = engine.addListener(listener)

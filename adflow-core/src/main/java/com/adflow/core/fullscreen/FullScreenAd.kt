@@ -13,6 +13,13 @@ interface FullScreenAd {
     /** Tiện lợi: `state.value is Loaded` (đã tính cả expiry). */
     val isReady: Boolean
 
+    /** true nếu gọi `show()` ngay bây giờ sẽ THỰC SỰ tiến hành hiển thị - đã tính cả showRule,
+     * khoảng nghỉ tối thiểu giữa 2 lần hiển thị, slot full-screen có đang bận không, và có ad sẵn
+     * sàng hay không, đúng thứ tự gate mà `show()` áp dụng. Khác [isReady] - vốn chỉ hỏi "có ad
+     * cache hay không". Không side effect nào ngoài những gì [isReady] đã gây ra (không tự load,
+     * không claim slot, không tiêu thụ ad cache). */
+    val canShow: Boolean
+
     /** Mở 1 lượt load nếu chưa có ad và không có lượt nào đang chạy - gọi lúc nào cũng an toàn,
      * lệnh gọi trùng được gộp vào lượt đang chạy. */
     fun load()

@@ -204,6 +204,97 @@ class InterstitialAdImplTest {
     }
 
     @Test
+    fun `canShow is true when ad is ready and nothing else blocks`() = runTest {
+        val runtime = newTestRuntime()
+        val source = FakeFullScreenAdSource { FakeLoadedFullScreenAd { _, _ -> } }
+        val interstitial = InterstitialAdImpl("p", config(), source, runtime, this)
+        interstitial.load()
+        advanceUntilIdle()
+
+        assertTrue(interstitial.canShow)
+        assertTrue(interstitial.isReady) // canShow không tiêu thụ ad cache
+    }
+
+    @Test
+    fun `canShow is false when showRule rejects, without touching the cached ad or the slot`() = runTest {
+        val runtime = newTestRuntime()
+        val source = FakeFullScreenAdSource { FakeLoadedFullScreenAd { _, _ -> } }
+        val interstitial = InterstitialAdImpl("p", config(showRule = AdRule { false }), source, runtime, this)
+        interstitial.load()
+        advanceUntilIdle()
+
+        assertFalse(interstitial.canShow)
+        assertFalse(runtime.fullScreenSlot.isShowing)
+        assertTrue(interstitial.isReady)
+    }
+
+    @Test
+    fun `canShow is false when interval has not elapsed, without touching the cached ad`() = runTest {
+        val runtime = newTestRuntime()
+        val source = FakeFullScreenAdSource { FakeLoadedFullScreenAd { _, _ -> } }
+        val interstitial = InterstitialAdImpl("p", config(), source, runtime, this)
+        interstitial.load()
+        advanceUntilIdle()
+        runtime.showIntervalPolicy.recordDismissed(AdType.INTERSTITIAL) // giả lập vừa show 1 lần
+
+        assertFalse(interstitial.canShow)
+        assertTrue(interstitial.isReady)
+    }
+
+    @Test
+    fun `canShow is false when another full-screen ad is showing, without touching the cached ad`() = runTest {
+        val runtime = newTestRuntime()
+        val source = FakeFullScreenAdSource { FakeLoadedFullScreenAd { _, _ -> } }
+        val interstitial = InterstitialAdImpl("p", config(), source, runtime, this)
+        interstitial.load()
+        advanceUntilIdle()
+        runtime.fullScreenSlot.tryClaim() // 1 full-screen ad khác đang show
+
+        assertFalse(interstitial.canShow)
+        assertTrue(interstitial.isReady)
+    }
+
+    @Test
+    fun `canShow is false and does not trigger a load while a load is already in flight`() = runTest {
+        val runtime = newTestRuntime()
+        val pending = CompletableDeferred<com.adflow.core.network.LoadedFullScreenAd>()
+        var loadCount = 0
+        val source = FakeFullScreenAdSource { loadCount++; pending.await() }
+        val interstitial = InterstitialAdImpl("p", config(), source, runtime, this)
+
+        interstitial.load()
+        runCurrent() // lượt load bắt đầu (state=Loading) nhưng chưa hoàn tất
+        assertTrue(interstitial.state.value is AdState.Loading)
+        assertEquals(1, loadCount)
+
+        assertFalse(interstitial.canShow)
+        assertFalse(interstitial.canShow) // gọi lặp lại vẫn không side effect
+        assertEquals(1, loadCount) // canShow không tự ensureLoaded() thêm lần nào
+
+        pending.complete(FakeLoadedFullScreenAd { _, _ -> })
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `canShow is false and does not trigger a self-heal load once the load has fully failed`() = runTest {
+        val runtime = newTestRuntime()
+        var loadCount = 0
+        val source = FakeFullScreenAdSource {
+            loadCount++
+            throw com.adflow.core.network.AdLoadException(AdFlowError(1, "no fill"))
+        }
+        val interstitial = InterstitialAdImpl("p", config(preload = false), source, runtime, this)
+        interstitial.load()
+        advanceUntilIdle()
+        assertTrue(interstitial.state.value is AdState.Failed)
+        val loadCountAfterFailure = loadCount
+
+        assertFalse(interstitial.canShow)
+        advanceUntilIdle()
+        assertEquals(loadCountAfterFailure, loadCount) // canShow không tự kích lại load
+    }
+
+    @Test
     fun `a synchronous throw from the SDK still releases the slot and self-heals`() = runTest {
         val runtime = newTestRuntime()
         var loadCount = 0

@@ -15,6 +15,7 @@ import com.adflow.core.network.LoadedFullScreenAd
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -96,5 +97,18 @@ class RewardedAdImplTest {
 
         assertEquals(BlockReason.NO_AD_AVAILABLE, callback.blockedReason)
         assertNull(callback.reward)
+    }
+
+    @Test
+    fun `canShow reflects the shared gate - false once the load has fully failed`() = runTest {
+        val runtime = newTestRuntime()
+        val source = FakeFullScreenAdSource {
+            throw com.adflow.core.network.AdLoadException(AdFlowError(1, "no fill"))
+        }
+        val rewarded = RewardedAdImpl("rewarded", config(), source, runtime, this)
+        rewarded.load()
+        advanceUntilIdle()
+
+        assertFalse(rewarded.canShow)
     }
 }

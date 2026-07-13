@@ -21,6 +21,7 @@ private class FakeAppOpenAd(initialState: AdState) : AppOpenAd {
     private val _state = kotlinx.coroutines.flow.MutableStateFlow(initialState)
     override val state: kotlinx.coroutines.flow.StateFlow<AdState> get() = _state
     override val isReady: Boolean get() = _state.value is AdState.Loaded
+    override val canShow: Boolean get() = isReady
     var shownWith: Activity? = null
 
     override fun load() {}

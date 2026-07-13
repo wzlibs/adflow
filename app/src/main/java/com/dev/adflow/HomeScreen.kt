@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,12 +39,24 @@ fun HomeScreen() {
     val context = LocalContext.current
     var premium by remember { mutableStateOf(PremiumState.isPremium) }
     var lastReward by remember { mutableStateOf<RewardItem?>(null) }
+    var showInterstitialConfirm by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val privacyOptionsRequired = AdFlow.consent.privacyOptionsRequirement == PrivacyOptionsRequirement.REQUIRED
 
     fun showBlocked(reason: String) {
         scope.launch { snackbarHostState.showSnackbar("Blocked: $reason") }
+    }
+
+    fun showInterstitial() {
+        (context as? android.app.Activity)?.let { activity ->
+            AdFlow.interstitial("global_interstitial").show(
+                activity,
+                object : FullScreenCallback {
+                    override fun onAdBlocked(reason: com.adflow.core.BlockReason) = showBlocked(reason.name)
+                },
+            )
+        }
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
@@ -66,13 +80,10 @@ fun HomeScreen() {
             }
 
             Button(onClick = {
-                (context as? android.app.Activity)?.let { activity ->
-                    AdFlow.interstitial("global_interstitial").show(
-                        activity,
-                        object : FullScreenCallback {
-                            override fun onAdBlocked(reason: com.adflow.core.BlockReason) = showBlocked(reason.name)
-                        },
-                    )
+                if (AdFlow.interstitial("global_interstitial").canShow) {
+                    showInterstitialConfirm = true
+                } else {
+                    showInterstitial()
                 }
             }) { Text("Show Global Interstitial") }
 
@@ -119,5 +130,22 @@ fun HomeScreen() {
             val bannerState by AdFlow.banner("home_banner").state.collectAsStateWithLifecycle()
             Text("Banner state: $bannerState")
         }
+    }
+
+    if (showInterstitialConfirm) {
+        AlertDialog(
+            onDismissRequest = { showInterstitialConfirm = false },
+            title = { Text("Quảng cáo sắp hiển thị") },
+            text = { Text("Ứng dụng sắp hiển thị 1 quảng cáo toàn màn hình.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showInterstitialConfirm = false
+                    showInterstitial()
+                }) { Text("Tiếp tục") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showInterstitialConfirm = false }) { Text("Hủy") }
+            },
+        )
     }
 }
