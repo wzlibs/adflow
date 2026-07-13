@@ -64,4 +64,12 @@ class AdHostApiImpl(
             }
         }
     }
+
+    override fun canShow(placementId: String): Boolean =
+        when (state.placementTypes[placementId]) {
+            PAdType.INTERSTITIAL -> AdFlow.interstitial(placementId).canShow
+            PAdType.APP_OPEN -> AdFlow.appOpen(placementId).canShow
+            PAdType.REWARDED -> AdFlow.rewarded(placementId).canShow
+            PAdType.BANNER, PAdType.NATIVE, null -> false
+        }
 }

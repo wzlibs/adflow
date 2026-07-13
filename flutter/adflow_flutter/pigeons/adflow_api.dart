@@ -233,6 +233,11 @@ abstract class AdHostApi {
   /// Chỉ có ý nghĩa với interstitial/appOpen/rewarded - kết quả trả qua
   /// [AdFlowFlutterApi.onShowEvent], không phải qua đây.
   void show(String placementId);
+
+  /// Chỉ có ý nghĩa với interstitial/appOpen/rewarded - trả về false cho loại khác. Query đồng
+  /// bộ, không side effect (không tự load(), không claim slot, không tiêu thụ ad cache) - mirror
+  /// `FullScreenAd.canShow` phía native (adflow-core).
+  bool canShow(String placementId);
 }
 
 @FlutterApi()

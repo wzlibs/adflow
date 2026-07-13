@@ -15,6 +15,12 @@ class AdFlowRewardedAd {
   ValueListenable<AdState> get state =>
       AdFlowDispatcher.instance.stateOf(placementId);
   Future<void> load() => _hostApi.load(placementId);
+
+  /// true nếu gọi [show] ngay bây giờ sẽ thực sự tiến hành hiển thị - đã tính cả showRule,
+  /// khoảng nghỉ tối thiểu giữa 2 lần hiển thị, và slot full-screen có đang bận không, ngoài
+  /// việc ad đã sẵn sàng hay chưa. Không side effect (không tự load(), không tiêu thụ ad cache).
+  Future<bool> canShow() => _hostApi.canShow(placementId);
+
   Future<AdState> awaitReady(Duration timeout) {
     load();
     return awaitTerminalAdState(state, timeout);

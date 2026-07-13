@@ -1,3 +1,12 @@
+## 1.0.0-alpha.2
+
+* Bump the underlying `adflow-core`/`adflow-admob` dependency to `v1.0.0-alpha02`.
+* Added `canShow()` to `AdFlowInterstitialAd`/`AdFlowAppOpenAd`/`AdFlowRewardedAd` - a synchronous,
+  side-effect-free query for whether calling `show()` right now would actually proceed (accounts
+  for `showRule`, the minimum interval between full-screen shows, and whether another full-screen
+  ad is currently showing, in addition to whether the ad is loaded). Not available on Banner/Native
+  - those ad types have no such gates on the native side either.
+
 ## 1.0.0-alpha.1
 
 * Breaking rewrite for AdFlow native `v1.0.0-alpha01`.
