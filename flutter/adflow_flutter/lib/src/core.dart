@@ -35,9 +35,6 @@ class AdFlow {
     await _hostApi.addRevenueLogger();
   }
 
-  static Future<void> setAdsEnabled(bool enabled) =>
-      _hostApi.setAdsEnabled(enabled);
-
   static bool get isShowingFullScreenAd =>
       AdFlowDispatcher.instance.isShowingFullScreenAd;
 

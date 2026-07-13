@@ -143,10 +143,13 @@ await AdFlow.native('home_native').reload();
 The Android `AdFlowBannerView` and `AdFlowNativeAdView` own attach, load, collapse, and rebind
 behavior. A successful native reload is reflected without changing the Flutter widget key.
 
-## Global controls and consent
+## Enabling and disabling placements, and consent
 
 ```dart
-await AdFlow.setAdsEnabled(!isPremium);
+final enabled = !isPremium;
+AdFlow.interstitial('global_interstitial').setEnabled(enabled);
+AdFlow.banner('home_banner').setEnabled(enabled);
+// rewarded left out on purpose - the user opts in to watch it for a reward.
 
 final error = await AdFlow.requestConsentIfNeeded();
 final requirement = await AdFlow.getPrivacyOptionsRequirement();
@@ -159,8 +162,9 @@ AdFlow.addRevenueLogger((event) {
 });
 ```
 
-`setAdsEnabled(false)` gates loading and showing for every placement. Re-enabling ads triggers a
-new demand-driven load for registered placements.
+`setEnabled(false)` on a handle gates loading and showing for that placement only - other
+placements are unaffected, so a bulk "premium" toggle can selectively exclude some (e.g. rewarded).
+Re-enabling triggers a new demand-driven load for that placement.
 
 ## Custom native renderer
 

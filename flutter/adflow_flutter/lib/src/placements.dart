@@ -53,8 +53,9 @@ class ShowIntervalConfig {
 }
 
 /// Khai báo 1 placement - truyền vào `AdFlow.initialize(placements: [...])` (mirror
-/// `AdFlow.initialize {}` DSL native v2, tập trung tất cả placement 1 chỗ). KHÔNG có `enabled`
-/// (native v2 đã bỏ) - dùng `AdFlow.setAdsEnabled()` toàn cục để tắt/bật hết ads (vd user premium).
+/// `AdFlow.initialize {}` DSL native v2, tập trung tất cả placement 1 chỗ). KHÔNG có `enabled` lúc
+/// khai báo (native v2 đã bỏ field này) - toggle runtime qua `setEnabled(bool)` trên từng ad handle
+/// (`AdFlow.interstitial(id).setEnabled(false)`...) sau khi đã khai.
 sealed class Placement {
   const Placement(this.placementId);
 

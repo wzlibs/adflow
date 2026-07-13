@@ -757,27 +757,6 @@ class AdFlowHostApi {
     ;
   }
 
-  /// Bật/tắt toàn bộ ads (vd premium user) - thay cho setEnabled() per-placement đã bỏ ở native
-  /// v2. Khi tắt, load()/show() mọi placement bị chặn ngay (BlockReason.ruleRejected), không chạm
-  /// network thật. Khi bật lại, tự kích load() lại cho mọi placement (demand-driven).
-  Future<void> setAdsEnabled(bool enabled) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.adflow_flutter.AdFlowHostApi.setAdsEnabled$pigeonVar_messageChannelSuffix';
-    final pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
-    );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[enabled]);
-    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
-
-    _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
-  }
-
   /// Đăng ký đúng 1 RevenueLoggerBridge phía Kotlin, forward sự kiện qua
   /// [AdFlowFlutterApi.onRevenuePaid]. Gọi lại nhiều lần là no-op (idempotent).
   Future<void> addRevenueLogger() async {
@@ -996,6 +975,29 @@ class AdHostApi {
     )
     ;
     return pigeonVar_replyValue! as bool;
+  }
+
+  /// Bật/tắt runtime cho đúng 1 placement - độc lập, không ảnh hưởng placement khác. Khi tắt,
+  /// load()/show() bị chặn ngay (BlockReason.ruleRejected), không chạm network thật; Banner/Native
+  /// cũng ngừng render. Bật lại tự kích load() lại (demand-driven). Mặc định mọi placement đều
+  /// enabled. Khôi phục lại setEnabled() per-placement của v1 - thay cho setAdsEnabled() toàn cục
+  /// đã bỏ.
+  Future<void> setEnabled(String placementId, bool enabled) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.adflow_flutter.AdHostApi.setEnabled$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[placementId, enabled]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 }
 

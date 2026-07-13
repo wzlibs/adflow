@@ -831,12 +831,6 @@ interface AdFlowHostApi {
    */
   fun initialize(placements: List<PPlacementConfig>, showIntervalConfig: PShowIntervalConfig, useLogcatLogger: Boolean, consentDebugGeography: PDebugGeography?, consentDebugTestDeviceHashedIds: List<String>)
   /**
-   * Bật/tắt toàn bộ ads (vd premium user) - thay cho setEnabled() per-placement đã bỏ ở native
-   * v2. Khi tắt, load()/show() mọi placement bị chặn ngay (BlockReason.ruleRejected), không chạm
-   * network thật. Khi bật lại, tự kích load() lại cho mọi placement (demand-driven).
-   */
-  fun setAdsEnabled(enabled: Boolean)
-  /**
    * Đăng ký đúng 1 RevenueLoggerBridge phía Kotlin, forward sự kiện qua
    * [AdFlowFlutterApi.onRevenuePaid]. Gọi lại nhiều lần là no-op (idempotent).
    */
@@ -876,24 +870,6 @@ interface AdFlowHostApi {
             val consentDebugTestDeviceHashedIdsArg = args[4] as List<String>
             val wrapped: List<Any?> = try {
               api.initialize(placementsArg, showIntervalConfigArg, useLogcatLoggerArg, consentDebugGeographyArg, consentDebugTestDeviceHashedIdsArg)
-              listOf(null)
-            } catch (exception: Throwable) {
-              AdflowApiPigeonUtils.wrapError(exception)
-            }
-            reply.reply(wrapped)
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.adflow_flutter.AdFlowHostApi.setAdsEnabled$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val enabledArg = args[0] as Boolean
-            val wrapped: List<Any?> = try {
-              api.setAdsEnabled(enabledArg)
               listOf(null)
             } catch (exception: Throwable) {
               AdflowApiPigeonUtils.wrapError(exception)
@@ -1031,6 +1007,14 @@ interface AdHostApi {
    * `FullScreenAd.canShow` phía native (adflow-core).
    */
   fun canShow(placementId: String): Boolean
+  /**
+   * Bật/tắt runtime cho đúng 1 placement - độc lập, không ảnh hưởng placement khác. Khi tắt,
+   * load()/show() bị chặn ngay (BlockReason.ruleRejected), không chạm network thật; Banner/Native
+   * cũng ngừng render. Bật lại tự kích load() lại (demand-driven). Mặc định mọi placement đều
+   * enabled. Khôi phục lại setEnabled() per-placement của v1 - thay cho setAdsEnabled() toàn cục
+   * đã bỏ.
+   */
+  fun setEnabled(placementId: String, enabled: Boolean)
 
   companion object {
     /** The codec used by AdHostApi. */
@@ -1103,6 +1087,25 @@ interface AdHostApi {
             val placementIdArg = args[0] as String
             val wrapped: List<Any?> = try {
               listOf(api.canShow(placementIdArg))
+            } catch (exception: Throwable) {
+              AdflowApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.adflow_flutter.AdHostApi.setEnabled$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val placementIdArg = args[0] as String
+            val enabledArg = args[1] as Boolean
+            val wrapped: List<Any?> = try {
+              api.setEnabled(placementIdArg, enabledArg)
+              listOf(null)
             } catch (exception: Throwable) {
               AdflowApiPigeonUtils.wrapError(exception)
             }

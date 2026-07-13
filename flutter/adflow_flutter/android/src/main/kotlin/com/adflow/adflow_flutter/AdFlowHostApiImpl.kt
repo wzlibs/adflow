@@ -38,8 +38,8 @@ private object NoOpAdFlowLogger : AdFlowLogger {
 
 /**
  * Khai báo toàn bộ placement 1 lần qua [initialize] (mirror `AdFlow.initialize {}` native v2),
- * cộng các thao tác toàn cục (setAdsEnabled/consent/revenue logger). Thao tác theo từng placement
- * (load/reload/show) nằm ở [AdHostApiImpl].
+ * cộng các thao tác toàn cục (consent/revenue logger). Thao tác theo từng placement (load/reload/
+ * show/setEnabled) nằm ở [AdHostApiImpl].
  */
 class AdFlowHostApiImpl(
     private val state: FlutterBridgeState,
@@ -108,8 +108,8 @@ class AdFlowHostApiImpl(
                         preload = p.preload
                         retryPolicy = p.retryPolicy.toCore()
                         size = p.bannerSize?.toCore() ?: BannerSize.ADAPTIVE
-                        loadWhen { state.adsEnabled }
-                        showWhen { state.adsEnabled }
+                        loadWhen(state::isEnabled)
+                        showWhen(state::isEnabled)
                     }
                 }
             }
@@ -122,10 +122,10 @@ class AdFlowHostApiImpl(
         scope.adUnits(*config.adUnitIds.toTypedArray())
         scope.preload = config.preload
         scope.retryPolicy = config.retryPolicy.toCore()
-        // Thay cho `enabled` đã bỏ ở native v2 - AdFlowHostApi.setAdsEnabled() toàn cục đọc field
-        // này thay vì per-placement setEnabled() như v1.
-        scope.loadWhen { state.adsEnabled }
-        scope.showWhen { state.adsEnabled }
+        // Thay cho `enabled` đã bỏ ở native v2 - AdHostApi.setEnabled() theo từng placement đọc
+        // qua state.isEnabled() thay vì 1 cờ toàn cục.
+        scope.loadWhen(state::isEnabled)
+        scope.showWhen(state::isEnabled)
     }
 
     // AdFlow.initialize() đăng ký controller cho mọi placement ĐỒNG BỘ trước khi trả về (xem
@@ -148,24 +148,6 @@ class AdFlowHostApiImpl(
             PAdType.BANNER -> AdFlow.banner(placementId).state
             PAdType.NATIVE -> AdFlow.native(placementId).state
         }
-
-    override fun setAdsEnabled(enabled: Boolean) {
-        val reopening = enabled && !state.adsEnabled
-        state.adsEnabled = enabled
-        // Demand-driven: bật lại sau khi tắt tự kích load() cho mọi placement đã biết - coi việc
-        // bật ads lại là 1 tín hiệu nhu cầu mới, không chờ view attach/show() tự self-heal.
-        if (reopening) {
-            state.placementTypes.forEach { (placementId, adType) ->
-                when (adType) {
-                    PAdType.INTERSTITIAL -> AdFlow.interstitial(placementId).load()
-                    PAdType.APP_OPEN -> AdFlow.appOpen(placementId).load()
-                    PAdType.REWARDED -> AdFlow.rewarded(placementId).load()
-                    PAdType.BANNER -> AdFlow.banner(placementId).load()
-                    PAdType.NATIVE -> AdFlow.native(placementId).load()
-                }
-            }
-        }
-    }
 
     override fun addRevenueLogger() {
         if (revenueLoggerRegistered) return

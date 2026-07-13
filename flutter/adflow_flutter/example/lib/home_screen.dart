@@ -47,7 +47,15 @@ class _HomeScreenState extends State<HomeScreen> {
               value: _premium,
               onChanged: (value) {
                 setState(() => _premium = value);
-                AdFlow.setAdsEnabled(!value);
+                final enabled = !value;
+                AdFlow.interstitial('splash_interstitial').setEnabled(enabled);
+                AdFlow.interstitial('global_interstitial').setEnabled(enabled);
+                AdFlow.appOpen('app_open').setEnabled(enabled);
+                AdFlow.banner('home_banner').setEnabled(enabled);
+                AdFlow.native('home_native').setEnabled(enabled);
+                AdFlow.native('feed_native').setEnabled(enabled);
+                AdFlow.native('small_native').setEnabled(enabled);
+                // rewarded cố tình không tắt - user chủ động xem để nhận thưởng.
               },
             ),
             FilledButton(

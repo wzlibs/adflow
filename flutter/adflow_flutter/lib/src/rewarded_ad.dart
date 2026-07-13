@@ -16,6 +16,10 @@ class AdFlowRewardedAd {
       AdFlowDispatcher.instance.stateOf(placementId);
   Future<void> load() => _hostApi.load(placementId);
 
+  /// Bật/tắt runtime cho đúng placement này - độc lập, không ảnh hưởng placement khác. Khi tắt,
+  /// [load]/[show] bị chặn ngay, không chạm network thật. Bật lại tự kích [load] lại.
+  Future<void> setEnabled(bool enabled) => _hostApi.setEnabled(placementId, enabled);
+
   /// true nếu gọi [show] ngay bây giờ sẽ thực sự tiến hành hiển thị - đã tính cả showRule,
   /// khoảng nghỉ tối thiểu giữa 2 lần hiển thị, và slot full-screen có đang bận không, ngoài
   /// việc ad đã sẵn sàng hay chưa. Không side effect (không tự load(), không tiêu thụ ad cache).

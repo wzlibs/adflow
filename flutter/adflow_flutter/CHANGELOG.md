@@ -1,3 +1,13 @@
+## Unreleased
+
+* **BREAKING**: removed the global `AdFlow.setAdsEnabled(bool)`. Restored the v1 per-placement
+  `setEnabled(bool)` instead, now on every ad handle
+  (`AdFlowInterstitialAd`/`AdFlowAppOpenAd`/`AdFlowRewardedAd`/`AdFlowBannerAd`/`AdFlowNativeAd`) -
+  toggling one placement no longer forces every other placement off too, e.g. a "premium" toggle
+  can leave a rewarded placement showing while disabling everything else. No `adflow-core` change
+  needed - both the old global flag and the new per-placement map work by feeding
+  `loadWhen`/`showWhen` (already-existing native `AdRule` hooks), just scoped differently.
+
 ## 1.0.0
 
 * First stable release of the state-first rewrite (was published as `1.0.0-alpha.1`/`1.0.0-alpha.2`

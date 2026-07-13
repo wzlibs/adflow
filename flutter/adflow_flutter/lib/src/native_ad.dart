@@ -19,6 +19,11 @@ class AdFlowNativeAd {
       AdFlowDispatcher.instance.stateOf(placementId);
   Future<void> load() => _hostApi.load(placementId);
   Future<void> reload() => _hostApi.reload(placementId);
+
+  /// Bật/tắt runtime cho đúng placement này - độc lập, không ảnh hưởng placement khác. Khi tắt,
+  /// [load]/[reload] và render đều bị chặn ngay, không chạm network thật. Bật lại tự kích [load]
+  /// lại.
+  Future<void> setEnabled(bool enabled) => _hostApi.setEnabled(placementId, enabled);
 }
 
 class AdFlowNative extends StatelessWidget {

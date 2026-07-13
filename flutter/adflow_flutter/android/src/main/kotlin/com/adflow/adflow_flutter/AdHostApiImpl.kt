@@ -72,4 +72,20 @@ class AdHostApiImpl(
             PAdType.REWARDED -> AdFlow.rewarded(placementId).canShow
             PAdType.BANNER, PAdType.NATIVE, null -> false
         }
+
+    override fun setEnabled(placementId: String, enabled: Boolean) {
+        val reopening = enabled && !state.isEnabled(placementId)
+        state.setEnabled(placementId, enabled)
+        // Demand-driven: bật lại tự kích load() lại - coi việc bật ads lại là 1 tín hiệu nhu cầu mới.
+        if (reopening) {
+            when (state.placementTypes[placementId]) {
+                PAdType.INTERSTITIAL -> AdFlow.interstitial(placementId).load()
+                PAdType.APP_OPEN -> AdFlow.appOpen(placementId).load()
+                PAdType.REWARDED -> AdFlow.rewarded(placementId).load()
+                PAdType.BANNER -> AdFlow.banner(placementId).load()
+                PAdType.NATIVE -> AdFlow.native(placementId).load()
+                null -> Log.w(TAG, "setEnabled('$placementId') - placementId chưa được khai báo trong AdFlow.initialize()")
+            }
+        }
+    }
 }

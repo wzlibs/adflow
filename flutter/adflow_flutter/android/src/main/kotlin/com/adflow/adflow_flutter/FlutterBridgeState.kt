@@ -18,10 +18,17 @@ class FlutterBridgeState(context: Context) {
      * Flutter engine chạy headless). */
     var currentActivity: Activity? = null
 
-    /** true (mặc định) - mỗi placement đăng ký lúc `AdFlowHostApi.initialize()` gắn `loadWhen`/
-     * `showWhen` đọc field này, mô phỏng `AdFlow.setAdsEnabled()` toàn cục thay cho `enabled` đã bỏ
-     * ở native v2 (AdRule không bridge qua channel được cho từng placement). */
-    @Volatile var adsEnabled: Boolean = true
+    /** placementId -> enabled override, mặc định true (chưa có entry = enabled). Mỗi placement
+     * đăng ký lúc `AdFlowHostApi.initialize()` gắn `loadWhen`/`showWhen` đọc qua [isEnabled] - khôi
+     * phục lại `setEnabled()` theo từng placement của v1 (native v2 không tự có field `enabled`,
+     * vẫn phải mô phỏng qua AdRule như bản global cũ, chỉ đổi 1 cờ chung thành map theo id). */
+    private val enabledOverrides = mutableMapOf<String, Boolean>()
+
+    fun isEnabled(placementId: String): Boolean = enabledOverrides[placementId] ?: true
+
+    fun setEnabled(placementId: String, enabled: Boolean) {
+        enabledOverrides[placementId] = enabled
+    }
 
     /** placementId -> loại ad - build đúng 1 lần lúc `AdFlowHostApi.initialize()`, dùng để
      * [AdHostApiImpl] biết gọi `AdFlow.interstitial/appOpen/rewarded/banner/native()` nào cho

@@ -16,7 +16,8 @@ import 'package:pigeon/pigeon.dart';
 // khai báo tập trung 1 lần qua AdFlowHostApi.initialize(), sau đó thao tác theo placementId qua
 // AdHostApi - registry native (AdFlow) tự biết mỗi id thuộc loại nào. Không có field
 // loadRule/showRule trong PPlacementConfig (AdRule là callback đồng bộ, không bridge qua channel
-// được) - việc bật/tắt ads đi qua AdFlowHostApi.setAdsEnabled() toàn cục thay vì per-placement.
+// được) - việc bật/tắt ads đi qua AdHostApi.setEnabled(placementId, enabled) theo từng placement
+// thay vì 1 field cấu hình bất biến.
 enum PAdType { interstitial, appOpen, rewarded, native, banner }
 
 // Khớp ConsentStatus.kt / PrivacyOptionsRequirement.kt (adflow-core) - case tên trùng hệt nên map
@@ -187,11 +188,6 @@ abstract class AdFlowHostApi {
     List<String> consentDebugTestDeviceHashedIds,
   );
 
-  /// Bật/tắt toàn bộ ads (vd premium user) - thay cho setEnabled() per-placement đã bỏ ở native
-  /// v2. Khi tắt, load()/show() mọi placement bị chặn ngay (BlockReason.ruleRejected), không chạm
-  /// network thật. Khi bật lại, tự kích load() lại cho mọi placement (demand-driven).
-  void setAdsEnabled(bool enabled);
-
   /// Đăng ký đúng 1 RevenueLoggerBridge phía Kotlin, forward sự kiện qua
   /// [AdFlowFlutterApi.onRevenuePaid]. Gọi lại nhiều lần là no-op (idempotent).
   void addRevenueLogger();
@@ -238,6 +234,13 @@ abstract class AdHostApi {
   /// bộ, không side effect (không tự load(), không claim slot, không tiêu thụ ad cache) - mirror
   /// `FullScreenAd.canShow` phía native (adflow-core).
   bool canShow(String placementId);
+
+  /// Bật/tắt runtime cho đúng 1 placement - độc lập, không ảnh hưởng placement khác. Khi tắt,
+  /// load()/show() bị chặn ngay (BlockReason.ruleRejected), không chạm network thật; Banner/Native
+  /// cũng ngừng render. Bật lại tự kích load() lại (demand-driven). Mặc định mọi placement đều
+  /// enabled. Khôi phục lại setEnabled() per-placement của v1 - thay cho setAdsEnabled() toàn cục
+  /// đã bỏ.
+  void setEnabled(String placementId, bool enabled);
 }
 
 @FlutterApi()
