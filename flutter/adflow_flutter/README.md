@@ -143,6 +143,25 @@ await AdFlow.native('home_native').reload();
 The Android `AdFlowBannerView` and `AdFlowNativeAdView` own attach, load, collapse, and rebind
 behavior. A successful native reload is reflected without changing the Flutter widget key.
 
+`loading`/`failed` build widgets during Flutter's build phase - calling `setState()` inside them
+throws ("setState() or markNeedsBuild() called during build"). For side effects (updating other
+state, logging, analytics...), use `onLoading`/`onLoaded`/`onError` instead - they always run after
+the current frame finishes building, so `setState()` inside them is safe:
+
+```dart
+AdFlowNative(
+  'home_native',
+  loading: (_) => const SizedBox(height: 250, child: LinearProgressIndicator()),
+  failed: (_, error) => const SizedBox.shrink(),
+  onLoading: () => setState(() => _nativeStatus = 'loading'),
+  onLoaded: () => setState(() => _nativeStatus = 'loaded'),
+  onError: (error) => setState(() => _nativeStatus = 'error: ${error.message}'),
+)
+```
+
+`onLoading` covers both "not yet requested" and "a load is in flight" (matches what the `loading`
+builder shows). Same three callbacks are available on `AdFlowBanner`.
+
 ## Enabling and disabling placements, and consent
 
 ```dart
