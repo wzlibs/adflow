@@ -1,3 +1,9 @@
+## 1.0.0
+
+* First stable release of the state-first rewrite (was published as `1.0.0-alpha.1`/`1.0.0-alpha.2`
+  prereleases). No API change from `1.0.0-alpha.2` - see that entry below for what it added over
+  `1.0.0-alpha.1`.
+
 ## 1.0.0-alpha.2
 
 * Bump the underlying `adflow-core`/`adflow-admob` dependency to `v1.0.0-alpha02`.

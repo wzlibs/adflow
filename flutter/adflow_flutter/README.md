@@ -7,12 +7,10 @@ as reactive state, and banner/native platform views manage loading and rebinding
 
 ## Setup
 
-Add the package. The current release is a prerelease (`1.0.0-alpha.2`), so pin the exact version -
-`flutter pub add adflow_flutter` won't pick a prerelease automatically:
+Add the package:
 
-```yaml
-dependencies:
-  adflow_flutter: 1.0.0-alpha.2
+```bash
+flutter pub add adflow_flutter
 ```
 
 See https://pub.dev/packages/adflow_flutter for the full version list.
