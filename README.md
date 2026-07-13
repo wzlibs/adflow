@@ -67,13 +67,13 @@ Trong `build.gradle.kts` của app:
 dependencies {
     // adflow-core tự kéo theo qua dependency này (adflow-admob khai api(...) tới nó) - không
     // cần khai riêng, trừ khi muốn pin version core khác admob (hiếm khi cần).
-    implementation("com.github.wzlibs.adflow:admob:v1.0.0-alpha01")
+    implementation("com.github.wzlibs.adflow:admob:v1.0.0-alpha02")
     // Tùy chọn - chỉ cần nếu dùng AdFlowBanner()/AdFlowNative() composable (mục 7).
-    implementation("com.github.wzlibs.adflow:compose:v1.0.0-alpha01")
+    implementation("com.github.wzlibs.adflow:compose:v1.0.0-alpha02")
 }
 ```
 
-(`v1.0.0-alpha01` là tag release - xem tag mới nhất tại repo GitHub `wzlibs/adflow`. JitPack build
+(`v1.0.0-alpha02` là tag release - xem tag mới nhất tại repo GitHub `wzlibs/adflow`. JitPack build
 theo yêu cầu ở lần đầu tiên có người dùng 1 tag mới, có thể mất khoảng 1-2 phút cho lần đầu).
 
 ### Cách 2 - include module trực tiếp

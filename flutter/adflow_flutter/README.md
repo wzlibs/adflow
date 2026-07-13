@@ -1,11 +1,23 @@
 # adflow_flutter
 
+[![pub package](https://img.shields.io/pub/v/adflow_flutter.svg)](https://pub.dev/packages/adflow_flutter)
+
 Android-only Flutter bridge for AdFlow v2. Placements are declared once, ad lifecycle is exposed
 as reactive state, and banner/native platform views manage loading and rebinding themselves.
 
 ## Setup
 
-Add the package, set Android `minSdk` to 24, and add JitPack to the app's repositories:
+Add the package. The current release is a prerelease (`1.0.0-alpha.2`), so pin the exact version -
+`flutter pub add adflow_flutter` won't pick a prerelease automatically:
+
+```yaml
+dependencies:
+  adflow_flutter: 1.0.0-alpha.2
+```
+
+See https://pub.dev/packages/adflow_flutter for the full version list.
+
+Set Android `minSdk` to 24, and add JitPack to the app's repositories:
 
 ```kotlin
 repositories {
