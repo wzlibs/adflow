@@ -6,8 +6,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Đợi placement sẵn sàng trong tối đa [timeout] - pattern splash: đợi rồi show, hết giờ thì đi
- * tiếp không show. Trả về true nếu ad ready trong hạn.
+ * Tự [load] rồi đợi placement sẵn sàng trong tối đa [timeout] - pattern splash: đợi rồi show, hết
+ * giờ thì đi tiếp không show. Trả về true nếu ad ready trong hạn. Không cần `preload = true` cho
+ * placement kiểu này (chỉ show đúng 1 lần) - `load()` gọi ở đây đã đủ, gọi lại không sao (coalesce
+ * nếu đang có lượt load khác chạy, no-op nếu đã ready).
  *
  * ```kotlin
  * if (AdFlow.interstitial("splash").awaitReady(8.seconds)) {
@@ -15,5 +17,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * } else navigateHome()
  * ```
  */
-suspend fun FullScreenAd.awaitReady(timeout: Duration): Boolean =
-    withTimeoutOrNull(timeout) { state.first { it is AdState.Loaded } } != null
+suspend fun FullScreenAd.awaitReady(timeout: Duration): Boolean {
+    load()
+    return withTimeoutOrNull(timeout) { state.first { it is AdState.Loaded } } != null
+}

@@ -15,6 +15,10 @@ class AdFlowDemoApp : Application() {
 
             interstitial("splash_interstitial") {
                 adUnits("ca-app-pub-3940256099942544/1033173712")
+                // Chỉ show đúng 1 lần lúc khởi động - preload = true sẽ tự load thêm 1 ad thừa
+                // sau khi show xong (afterShowEnds()) mà không bao giờ dùng tới. awaitReady() tự
+                // load() rồi mới đợi, nên không cần preload để có ad sẵn sàng lúc splash hiển thị.
+                preload = false
                 loadWhen { !PremiumState.isPremium }
                 showWhen { !PremiumState.isPremium }
             }
