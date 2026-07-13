@@ -103,6 +103,20 @@ await AdFlow.rewarded('rewarded').show(
 States are `AdIdle`, `AdLoading`, `AdLoaded`, `AdFailed`, and `AdShowing`. Block reasons distinguish
 loading, no-fill, consent, rule rejection, interval throttling, and another full-screen ad.
 
+`canShow()` answers "would `show()` actually proceed right now" without side effects (no load, no
+slot claim, no ad consumed) - checks `showRule`, the minimum interval between shows, and whether
+another full-screen ad is currently showing, in addition to whether the ad is loaded. Useful for
+gating a button before committing to `show()`, e.g. confirming with the user first:
+
+```dart
+final interstitial = AdFlow.interstitial('global_interstitial');
+if (await interstitial.canShow()) {
+  await interstitial.show();
+}
+```
+
+Not available on Banner/Native - those ad types have no such gates to check.
+
 ## Banner and native widgets
 
 The widgets react to placement state. No readiness polling, generation keys, or manual platform
