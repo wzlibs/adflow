@@ -16,12 +16,18 @@ import org.robolectric.RuntimeEnvironment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
-private class FakeAppOpenAd(initialState: AdState) : AppOpenAd {
+private class FakeAppOpenAd(initialState: AdState, private val runtime: AdFlowRuntime) : AppOpenAd {
     override val placementId = "app_open"
     private val _state = kotlinx.coroutines.flow.MutableStateFlow(initialState)
     override val state: kotlinx.coroutines.flow.StateFlow<AdState> get() = _state
     override val isReady: Boolean get() = _state.value is AdState.Loaded
-    override val canShow: Boolean get() = isReady
+
+    /** null (mặc định) - suy ra như thật (isReady + slot rảnh). Set tay để giả lập canShow bị
+     * chặn bởi lý do khác (showRule/interval) mà isReady/slot không phản ánh được, xác nhận
+     * showIfPossible() thực sự dựa vào canShow chứ không tự suy luận lại. */
+    var canShowOverride: Boolean? = null
+    override val canShow: Boolean
+        get() = canShowOverride ?: (isReady && !runtime.fullScreenSlot.isShowing)
     var shownWith: Activity? = null
 
     override fun load() {}
@@ -44,8 +50,8 @@ class AppOpenForegroundObserverTest {
 
     @Test
     fun `does nothing when there is no resumed activity`() {
-        val appOpen = FakeAppOpenAd(AdState.Loaded(0))
-        val observer = AppOpenForegroundObserver(application, appOpen, runtime)
+        val appOpen = FakeAppOpenAd(AdState.Loaded(0), runtime)
+        val observer = AppOpenForegroundObserver(application, appOpen)
         observer.start()
 
         observer.showIfPossible()
@@ -55,8 +61,8 @@ class AppOpenForegroundObserverTest {
 
     @Test
     fun `shows the app open ad once an activity resumes, when ready and nothing else is showing`() {
-        val appOpen = FakeAppOpenAd(AdState.Loaded(0))
-        val observer = AppOpenForegroundObserver(application, appOpen, runtime)
+        val appOpen = FakeAppOpenAd(AdState.Loaded(0), runtime)
+        val observer = AppOpenForegroundObserver(application, appOpen)
         observer.start()
 
         val activityController = Robolectric.buildActivity(Activity::class.java).create().start().resume()
@@ -67,8 +73,8 @@ class AppOpenForegroundObserverTest {
 
     @Test
     fun `defers a foreground signal that arrives before any activity has resumed`() {
-        val appOpen = FakeAppOpenAd(AdState.Loaded(0))
-        val observer = AppOpenForegroundObserver(application, appOpen, runtime)
+        val appOpen = FakeAppOpenAd(AdState.Loaded(0), runtime)
+        val observer = AppOpenForegroundObserver(application, appOpen)
         observer.start()
 
         observer.onForegroundStart() // process vừa start, chưa có Activity nào resume
@@ -81,8 +87,8 @@ class AppOpenForegroundObserverTest {
 
     @Test
     fun `never shows over another full-screen ad already showing`() {
-        val appOpen = FakeAppOpenAd(AdState.Loaded(0))
-        val observer = AppOpenForegroundObserver(application, appOpen, runtime)
+        val appOpen = FakeAppOpenAd(AdState.Loaded(0), runtime)
+        val observer = AppOpenForegroundObserver(application, appOpen)
         observer.start()
         Robolectric.buildActivity(Activity::class.java).create().start().resume()
         runtime.fullScreenSlot.tryClaim()
@@ -94,13 +100,25 @@ class AppOpenForegroundObserverTest {
 
     @Test
     fun `does not show when the ad is not yet Loaded`() {
-        val appOpen = FakeAppOpenAd(AdState.Loading)
-        val observer = AppOpenForegroundObserver(application, appOpen, runtime)
+        val appOpen = FakeAppOpenAd(AdState.Loading, runtime)
+        val observer = AppOpenForegroundObserver(application, appOpen)
         observer.start()
         Robolectric.buildActivity(Activity::class.java).create().start().resume()
 
         observer.showIfPossible()
 
         assertNull(appOpen.shownWith)
+    }
+
+    @Test
+    fun `defers entirely to canShow - does not show when canShow is false even though ready and slot is free`() {
+        val appOpen = FakeAppOpenAd(AdState.Loaded(0), runtime).apply { canShowOverride = false }
+        val observer = AppOpenForegroundObserver(application, appOpen)
+        observer.start()
+        Robolectric.buildActivity(Activity::class.java).create().start().resume()
+
+        observer.showIfPossible()
+
+        assertNull(appOpen.shownWith) // isReady=true, slot rảnh - nhưng canShow=false (vd showRule/interval) vẫn phải chặn
     }
 }

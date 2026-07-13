@@ -89,7 +89,7 @@ object AdFlow {
             if (config.autoShowOnForeground) {
                 val application = appContext as? Application
                     ?: error("Placement '${config.placementId}' bật autoShowOnForeground nhưng context truyền vào AdFlow.initialize() không phải Application")
-                observers += AppOpenForegroundObserver(application, ad, newRuntime).also { it.start() }
+                observers += AppOpenForegroundObserver(application, ad).also { it.start() }
             }
         }
         scope.rewardedConfigs.forEach { config ->

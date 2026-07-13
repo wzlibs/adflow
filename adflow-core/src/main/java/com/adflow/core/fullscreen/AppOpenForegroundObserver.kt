@@ -6,15 +6,13 @@ import android.os.Bundle
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.adflow.core.AdState
-import com.adflow.core.engine.AdFlowRuntime
 
 /**
  * Tự động show 1 [AppOpenAd] mỗi khi app quay lại foreground - kích hoạt bởi facade `AdFlow` cho
  * placement bật `autoShowOnForeground = true` trong DSL, theo đúng pattern App Open Ads mà Google
- * khuyến nghị. Không bao giờ show đè lên full-screen ad khác đang hiển thị
- * ([AdFlowRuntime.fullScreenSlot]) - class này chỉ quyết định LÚC NÀO gọi `show()`, mọi
- * check show-interval/showRule khác vẫn do [AppOpenAd.show] tự áp dụng như bình thường.
+ * khuyến nghị. Class này chỉ quyết định LÚC NÀO gọi `show()` (dựa hẳn vào [AppOpenAd.canShow] -
+ * đã gồm cả không đè lên full-screen ad khác đang hiển thị, showRule, và show-interval), không tự
+ * check lại bất kỳ điều kiện nào trong số đó.
  *
  * Dùng [ProcessLifecycleOwner] (không phải lifecycle theo từng Activity) để phát hiện đúng 1 lần
  * chuyển sang foreground ở cấp độ app - chuyển giữa 2 Activity trong cùng app không kích hoạt
@@ -23,7 +21,6 @@ import com.adflow.core.engine.AdFlowRuntime
 internal class AppOpenForegroundObserver(
     private val application: Application,
     private val appOpen: AppOpenAd,
-    private val runtime: AdFlowRuntime,
 ) {
     private var currentActivity: Activity? = null
     private var pendingForegroundShow = false
@@ -92,8 +89,7 @@ internal class AppOpenForegroundObserver(
     /** Tách khỏi phần lifecycle plumbing kích hoạt nó để gọi trực tiếp được trong test. */
     internal fun showIfPossible() {
         val activity = currentActivity ?: return
-        if (runtime.fullScreenSlot.isShowing) return
-        if (appOpen.state.value !is AdState.Loaded) return
+        if (!appOpen.canShow) return
         appOpen.show(activity, FullScreenCallback.EMPTY)
     }
 }
