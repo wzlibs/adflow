@@ -108,6 +108,7 @@ object AdFlow {
         newRuntime.networkInitializer = { network.initialize(appContext) {} }
 
         consentManager = network.createConsentManager(appContext, scope.consentDebugConfig) { allows ->
+            Log.d("AdFlowSDK", "createConsentManager allows: $allows")
             newRuntime.updateConsent(allows)
         }
     }
