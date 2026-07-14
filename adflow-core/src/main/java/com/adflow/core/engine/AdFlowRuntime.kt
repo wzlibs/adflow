@@ -23,10 +23,25 @@ internal class AdFlowRuntime(
     val showIntervalPolicy = ShowIntervalPolicy(showIntervalConfig, clock)
     val foregroundGate = ForegroundGate()
 
-    /** GDPR/consent - mặc định true (không chặn gì) để không phá app chưa tích hợp
-     * [com.adflow.core.consent.ConsentManager]. Cập nhật qua callback `onConsentChanged` truyền
-     * vào `AdNetwork.createConsentManager()` mỗi khi consent resolve/đổi. */
-    var consentAllowsAdRequests: Boolean = true
+    /** GDPR/consent - mặc định `false` (fail-safe deny): không load/init gì cho tới khi biết chắc
+     * `canRequestAds()` cho phép. Cập nhật qua [updateConsent], được gọi từ callback
+     * `onConsentChanged` truyền vào `AdNetwork.createConsentManager()` mỗi khi consent resolve/đổi. */
+    var consentAllowsAdRequests: Boolean = false
+        private set
+
+    /** Chạy đúng 1 lần khi consent cho phép lần đầu tiên - gán bởi `AdFlow.initialize()`. */
+    var networkInitializer: (() -> Unit)? = null
+    private var networkInitStarted = false
+
+    /** Cập nhật trạng thái consent; nếu vừa được phép và chưa init lần nào, kích [networkInitializer]
+     * đúng 1 lần (không phụ thuộc foreground - xem docs/features/2026-07-14-ad-network-init-consent-gate.md). */
+    fun updateConsent(allows: Boolean) {
+        consentAllowsAdRequests = allows
+        if (allows && !networkInitStarted) {
+            networkInitStarted = true
+            networkInitializer?.invoke()
+        }
+    }
 
     private val revenueLoggers = mutableListOf<RevenueLogger>()
 

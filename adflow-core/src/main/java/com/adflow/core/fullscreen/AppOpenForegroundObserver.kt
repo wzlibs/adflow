@@ -89,7 +89,14 @@ internal class AppOpenForegroundObserver(
     /** Tách khỏi phần lifecycle plumbing kích hoạt nó để gọi trực tiếp được trong test. */
     internal fun showIfPossible() {
         val activity = currentActivity ?: return
-        if (!appOpen.canShow) return
+        if (!appOpen.canShow) {
+            // Không còn auto-load lúc AdFlow.initialize() - nếu không tự load ở đây, placement
+            // autoShowOnForeground sẽ không bao giờ có ad đầu tiên. Vô hại nếu canShow=false vì lý
+            // do khác (showRule/interval/slot bận): ensureLoaded() bên dưới tự coalesce/no-op khi
+            // đã có ad sẵn sàng.
+            appOpen.load()
+            return
+        }
         appOpen.show(activity, FullScreenCallback.EMPTY)
     }
 }

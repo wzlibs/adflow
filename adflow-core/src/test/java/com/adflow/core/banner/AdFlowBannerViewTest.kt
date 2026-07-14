@@ -46,12 +46,15 @@ private class TestAdNetwork(private val banner: BannerAdSource) : AdNetwork {
         context: Context,
         debug: ConsentDebugConfig?,
         onConsentChanged: (Boolean) -> Unit,
-    ): ConsentManager = object : ConsentManager {
-        override val status = MutableStateFlow(ConsentStatus.NOT_REQUIRED)
-        override val privacyOptionsRequirement = PrivacyOptionsRequirement.NOT_REQUIRED
-        override fun canRequestAds() = true
-        override fun requestIfNeeded(activity: Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
-        override fun showPrivacyOptionsForm(activity: Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
+    ): ConsentManager {
+        onConsentChanged(true) // mô phỏng seed đồng bộ của AdMobConsentManager thật
+        return object : ConsentManager {
+            override val status = MutableStateFlow(ConsentStatus.NOT_REQUIRED)
+            override val privacyOptionsRequirement = PrivacyOptionsRequirement.NOT_REQUIRED
+            override fun canRequestAds() = true
+            override fun requestIfNeeded(activity: Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
+            override fun showPrivacyOptionsForm(activity: Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
+        }
     }
     override fun interstitialSource(context: Context): FullScreenAdSource = error("not used")
     override fun appOpenSource(context: Context): FullScreenAdSource = error("not used")

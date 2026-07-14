@@ -21,11 +21,6 @@ interface AdFlowConfigScope {
 
     var logger: AdFlowLogger
 
-    /** true (mặc định): khi app thực sự vào foreground lần đầu, tự gọi `network.initialize()` rồi
-     * `load()` mọi placement có `preload = true` - tránh lãng phí ad request khi process chỉ bị
-     * OS đánh thức để làm việc nền (FCM push...) mà không có Activity nào sắp hiển thị. */
-    var preloadOnFirstForeground: Boolean
-
     fun showIntervals(block: ShowIntervalScope.() -> Unit)
 
     fun consentDebug(block: ConsentDebugScope.() -> Unit)
@@ -45,6 +40,10 @@ interface BasePlacementScope {
     /** Danh sách ad unit ID theo thứ tự waterfall - bắt buộc, không được rỗng. */
     fun adUnits(vararg ids: String)
 
+    /** true (mặc định): sau khi ad hiện tại bị tiêu thụ (show xong với full-screen, `release()` với
+     * banner) thì tự load ngay 1 ad kế tiếp. Không áp dụng cho lượt load đầu tiên - placement lúc
+     * mới `initialize()` chưa có ad nào, app phải tự gọi `.load()` (banner/native tự load khi gắn
+     * view, không cần app gọi). */
     var preload: Boolean
     var retryPolicy: RetryPolicy
 

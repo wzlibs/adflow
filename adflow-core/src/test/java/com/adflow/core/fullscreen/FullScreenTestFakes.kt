@@ -56,4 +56,4 @@ internal fun TestScope.newTestRuntime(): AdFlowRuntime =
         logger = AdFlowLogger { _, _, _, _ -> },
         scope = this,
         clock = { testScheduler.currentTime },
-    )
+    ).also { it.updateConsent(true) } // consent mặc định false - seed true để test hiện có không bị chặn

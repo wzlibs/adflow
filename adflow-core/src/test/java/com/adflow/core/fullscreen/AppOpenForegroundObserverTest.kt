@@ -29,8 +29,9 @@ private class FakeAppOpenAd(initialState: AdState, private val runtime: AdFlowRu
     override val canShow: Boolean
         get() = canShowOverride ?: (isReady && !runtime.fullScreenSlot.isShowing)
     var shownWith: Activity? = null
+    var loadCalls = 0
 
-    override fun load() {}
+    override fun load() { loadCalls++ }
     override fun addListener(listener: AdListener) {}
     override fun removeListener(listener: AdListener) {}
     override fun show(activity: Activity, callback: FullScreenCallback) {
@@ -46,7 +47,7 @@ class AppOpenForegroundObserverTest {
         network = NoOpAdNetwork,
         logger = AdFlowLogger { _, _, _, _ -> },
         scope = CoroutineScope(Dispatchers.Unconfined),
-    )
+    ).also { it.updateConsent(true) } // consent mặc định false - seed true để test hiện có không bị chặn
 
     @Test
     fun `does nothing when there is no resumed activity`() {
@@ -57,6 +58,7 @@ class AppOpenForegroundObserverTest {
         observer.showIfPossible()
 
         assertNull(appOpen.shownWith)
+        assertEquals(0, appOpen.loadCalls) // chưa có activity nào - chưa tới lượt xét canShow
     }
 
     @Test
@@ -69,6 +71,7 @@ class AppOpenForegroundObserverTest {
         observer.showIfPossible()
 
         assertEquals(activityController.get(), appOpen.shownWith)
+        assertEquals(0, appOpen.loadCalls) // đã show được - không cần load thêm
     }
 
     @Test
@@ -86,7 +89,7 @@ class AppOpenForegroundObserverTest {
     }
 
     @Test
-    fun `never shows over another full-screen ad already showing`() {
+    fun `never shows over another full-screen ad already showing, but still loads (harmless no-op if already ready)`() {
         val appOpen = FakeAppOpenAd(AdState.Loaded(0), runtime)
         val observer = AppOpenForegroundObserver(application, appOpen)
         observer.start()
@@ -96,10 +99,11 @@ class AppOpenForegroundObserverTest {
         observer.showIfPossible()
 
         assertNull(appOpen.shownWith)
+        assertEquals(1, appOpen.loadCalls)
     }
 
     @Test
-    fun `does not show when the ad is not yet Loaded`() {
+    fun `foreground with no ad available calls load() so the next foreground has a fresh ad`() {
         val appOpen = FakeAppOpenAd(AdState.Loading, runtime)
         val observer = AppOpenForegroundObserver(application, appOpen)
         observer.start()
@@ -108,6 +112,7 @@ class AppOpenForegroundObserverTest {
         observer.showIfPossible()
 
         assertNull(appOpen.shownWith)
+        assertEquals(1, appOpen.loadCalls) // không còn auto-load lúc initialize() nữa - đây là nơi duy nhất kích lượt load đầu tiên
     }
 
     @Test
@@ -120,5 +125,6 @@ class AppOpenForegroundObserverTest {
         observer.showIfPossible()
 
         assertNull(appOpen.shownWith) // isReady=true, slot rảnh - nhưng canShow=false (vd showRule/interval) vẫn phải chặn
+        assertEquals(1, appOpen.loadCalls) // vô hại theo thiết kế - ensureLoaded() thật sẽ tự no-op vì đã có ad sẵn sàng
     }
 }

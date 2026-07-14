@@ -36,12 +36,17 @@ private object FakeAdNetwork : AdNetwork {
         context: Context,
         debug: ConsentDebugConfig?,
         onConsentChanged: (Boolean) -> Unit,
-    ): ConsentManager = object : ConsentManager {
-        override val status = MutableStateFlow(ConsentStatus.NOT_REQUIRED)
-        override val privacyOptionsRequirement = PrivacyOptionsRequirement.NOT_REQUIRED
-        override fun canRequestAds() = true
-        override fun requestIfNeeded(activity: android.app.Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
-        override fun showPrivacyOptionsForm(activity: android.app.Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
+    ): ConsentManager {
+        // Mô phỏng đúng hành vi seed đồng bộ của AdMobConsentManager thật (canRequestAds() = true
+        // ngay từ đầu ở đây) - nếu không, consentAllowsAdRequests mặc định false sẽ chặn mọi test load.
+        onConsentChanged(true)
+        return object : ConsentManager {
+            override val status = MutableStateFlow(ConsentStatus.NOT_REQUIRED)
+            override val privacyOptionsRequirement = PrivacyOptionsRequirement.NOT_REQUIRED
+            override fun canRequestAds() = true
+            override fun requestIfNeeded(activity: android.app.Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
+            override fun showPrivacyOptionsForm(activity: android.app.Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
+        }
     }
 
     private val neverLoadingFullScreen = object : FullScreenAdSource {
@@ -59,6 +64,68 @@ private object FakeAdNetwork : AdNetwork {
 
     override fun nativeSource(context: Context): NativeAdSource = object : NativeAdSource {
         override suspend fun load(request: AdRequestInfo) = suspendForever<com.adflow.core.network.LoadedNativeAd>()
+    }
+
+    private suspend fun <T> suspendForever(): T = kotlinx.coroutines.suspendCancellableCoroutine { }
+}
+
+/** Fake [AdNetwork] đếm số lần `initialize()`/`load()` được gọi và cho phép test tự tay bắn lại
+ * callback consent - dùng để test trọng tâm của việc init SDK chỉ theo consent, tách khỏi
+ * foreground (xem docs/features/2026-07-14-ad-network-init-consent-gate.md). */
+private class ConfigurableAdNetwork(private val seedConsent: Boolean) : AdNetwork {
+    override val name: String = "configurable-fake"
+
+    var initializeCallCount = 0
+        private set
+    var loadCallCount = 0
+        private set
+    var capturedOnConsentChanged: ((Boolean) -> Unit)? = null
+        private set
+
+    override fun initialize(context: Context, onComplete: () -> Unit) {
+        initializeCallCount++
+        onComplete()
+    }
+
+    override fun createConsentManager(
+        context: Context,
+        debug: ConsentDebugConfig?,
+        onConsentChanged: (Boolean) -> Unit,
+    ): ConsentManager {
+        capturedOnConsentChanged = onConsentChanged
+        onConsentChanged(seedConsent)
+        return object : ConsentManager {
+            override val status = MutableStateFlow(ConsentStatus.NOT_REQUIRED)
+            override val privacyOptionsRequirement = PrivacyOptionsRequirement.NOT_REQUIRED
+            override fun canRequestAds() = seedConsent
+            override fun requestIfNeeded(activity: android.app.Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
+            override fun showPrivacyOptionsForm(activity: android.app.Activity, onComplete: (AdFlowError?) -> Unit) = onComplete(null)
+        }
+    }
+
+    private val countingFullScreen = object : FullScreenAdSource {
+        override suspend fun load(request: AdRequestInfo): LoadedFullScreenAd {
+            loadCallCount++
+            return suspendForever()
+        }
+    }
+
+    override fun interstitialSource(context: Context): FullScreenAdSource = countingFullScreen
+    override fun appOpenSource(context: Context): FullScreenAdSource = countingFullScreen
+    override fun rewardedSource(context: Context): FullScreenAdSource = countingFullScreen
+
+    override fun bannerSource(context: Context): BannerAdSource = object : BannerAdSource {
+        override suspend fun load(request: AdRequestInfo, size: com.adflow.core.banner.BannerSize): com.adflow.core.network.LoadedBannerAd {
+            loadCallCount++
+            return suspendForever()
+        }
+    }
+
+    override fun nativeSource(context: Context): NativeAdSource = object : NativeAdSource {
+        override suspend fun load(request: AdRequestInfo): com.adflow.core.network.LoadedNativeAd {
+            loadCallCount++
+            return suspendForever()
+        }
     }
 
     private suspend fun <T> suspendForever(): T = kotlinx.coroutines.suspendCancellableCoroutine { }
@@ -140,5 +207,45 @@ class AdFlowTest {
         AdFlow.initialize(RuntimeEnvironment.getApplication()) {
             interstitial("inter") { adUnits("u1") }
         }
+    }
+
+    @Test
+    fun `network initialize runs immediately when consent already allows ads at seed`() {
+        val fakeNetwork = ConfigurableAdNetwork(seedConsent = true)
+        AdFlow.initialize(RuntimeEnvironment.getApplication()) {
+            network = fakeNetwork
+            interstitial("inter") { adUnits("u1") }
+        }
+
+        assertEquals(1, fakeNetwork.initializeCallCount)
+    }
+
+    @Test
+    fun `network initialize is deferred until consent callback reports true`() {
+        val fakeNetwork = ConfigurableAdNetwork(seedConsent = false)
+        AdFlow.initialize(RuntimeEnvironment.getApplication()) {
+            network = fakeNetwork
+            interstitial("inter") { adUnits("u1") }
+        }
+        assertEquals(0, fakeNetwork.initializeCallCount)
+
+        fakeNetwork.capturedOnConsentChanged?.invoke(true)
+
+        assertEquals(1, fakeNetwork.initializeCallCount)
+    }
+
+    @Test
+    fun `initialize never triggers a load for any placement even though preload defaults to true`() {
+        val fakeNetwork = ConfigurableAdNetwork(seedConsent = true)
+        AdFlow.initialize(RuntimeEnvironment.getApplication()) {
+            network = fakeNetwork
+            interstitial("inter") { adUnits("u1") }
+            appOpen("open") { adUnits("u1") }
+            rewarded("reward") { adUnits("u1") }
+            banner("banner") { adUnits("u1") }
+            native("native") { adUnits("u1") }
+        }
+
+        assertEquals(0, fakeNetwork.loadCallCount)
     }
 }

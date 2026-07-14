@@ -74,18 +74,15 @@ object AdFlow {
         val newRegistry = PlacementRegistry()
         registry = newRegistry
 
-        val preloadActions = mutableListOf<() -> Unit>()
         val observers = mutableListOf<AppOpenForegroundObserver>()
 
         scope.interstitialConfigs.forEach { config ->
             val ad = InterstitialAdImpl(config.placementId, config, network.interstitialSource(appContext), newRuntime, coroutineScope)
             newRegistry.register(config.placementId, ad)
-            if (config.preload) preloadActions += ad::load
         }
         scope.appOpenConfigs.forEach { config ->
             val ad = AppOpenAdImpl(config.placementId, config, network.appOpenSource(appContext), newRuntime, coroutineScope)
             newRegistry.register(config.placementId, ad)
-            if (config.preload) preloadActions += ad::load
             if (config.autoShowOnForeground) {
                 val application = appContext as? Application
                     ?: error("Placement '${config.placementId}' bật autoShowOnForeground nhưng context truyền vào AdFlow.initialize() không phải Application")
@@ -95,28 +92,23 @@ object AdFlow {
         scope.rewardedConfigs.forEach { config ->
             val ad = RewardedAdImpl(config.placementId, config, network.rewardedSource(appContext), newRuntime, coroutineScope)
             newRegistry.register(config.placementId, ad)
-            if (config.preload) preloadActions += ad::load
         }
         scope.bannerConfigs.forEach { config ->
             val controller = BannerAdControllerImpl(config.placementId, config, network.bannerSource(appContext), newRuntime, coroutineScope)
             newRegistry.register(config.placementId, controller)
-            if (config.preload) preloadActions += controller::load
         }
         scope.nativeConfigs.forEach { config ->
             val controller = NativeAdControllerImpl(config.placementId, config, network.nativeSource(appContext), newRuntime, coroutineScope)
             newRegistry.register(config.placementId, controller)
-            if (config.preload) preloadActions += controller::load
         }
         appOpenObservers = observers
 
-        consentManager = network.createConsentManager(appContext, scope.consentDebugConfig) { allows ->
-            newRuntime.consentAllowsAdRequests = allows
-        }
+        // Init SDK quảng cáo chỉ phụ thuộc consent, không cần đợi foreground - xem
+        // docs/features/2026-07-14-ad-network-init-consent-gate.md để biết lý do.
+        newRuntime.networkInitializer = { network.initialize(appContext) {} }
 
-        newRuntime.foregroundGate.runOnFirstForeground {
-            network.initialize(appContext) {
-                if (scope.preloadOnFirstForeground) preloadActions.forEach { it() }
-            }
+        consentManager = network.createConsentManager(appContext, scope.consentDebugConfig) { allows ->
+            newRuntime.updateConsent(allows)
         }
     }
 

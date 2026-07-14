@@ -26,10 +26,10 @@ internal class AdMobConsentManager(
     context: Context,
     debug: ConsentDebugConfig?,
     private val onConsentChanged: (allowsAdRequests: Boolean) -> Unit,
+    private val consentInformation: ConsentInformation = UserMessagingPlatform.getConsentInformation(context.applicationContext),
 ) : ConsentManager {
 
     private val appContext = context.applicationContext
-    private val consentInformation: ConsentInformation = UserMessagingPlatform.getConsentInformation(appContext)
 
     private val debugGeography: Int? = when (debug?.geography) {
         ConsentDebugGeography.EEA -> ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA
@@ -40,6 +40,13 @@ internal class AdMobConsentManager(
 
     private val _status = MutableStateFlow(mapStatus(consentInformation.consentStatus))
     override val status: StateFlow<ConsentStatus> get() = _status
+
+    init {
+        // Seed đồng bộ từ consent đã lưu ở phiên trước (hoặc geography NOT_REQUIRED) - fast path để
+        // `AdFlowRuntime` biết ngay có được phép init SDK/load ads hay chưa mà không cần đợi
+        // `requestIfNeeded()` chạy xong.
+        onConsentChanged(canRequestAds())
+    }
 
     override val privacyOptionsRequirement: PrivacyOptionsRequirement
         get() = when (consentInformation.privacyOptionsRequirementStatus) {

@@ -69,7 +69,7 @@ class AdLoadEngineTest {
             logger = AdFlowLogger { _, _, _, _ -> },
             scope = this,
             clock = { testScheduler.currentTime }, // đồng bộ với thời gian ảo của TestScope, không dùng wall clock thật
-        )
+        ).also { it.updateConsent(true) } // consent mặc định false - seed true để test hiện có (không test consent gating) không bị chặn
 
     private fun config(
         adUnitIds: List<String> = listOf("unit-a"),

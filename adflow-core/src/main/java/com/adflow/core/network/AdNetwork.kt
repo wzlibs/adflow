@@ -15,9 +15,10 @@ interface AdNetwork {
 
     fun initialize(context: Context, onComplete: () -> Unit)
 
-    /** [onConsentChanged] - adapter gọi lại mỗi khi consent resolve/đổi, với giá trị
-     * `canRequestAds()` mới; core dùng nó làm gate load, mặc định cho phép khi chưa resolve lần
-     * nào (không phá app chưa tích hợp consent). */
+    /** [onConsentChanged] - implementation PHẢI gọi đồng bộ, đúng 1 lần ngay khi tạo (seed từ
+     * `canRequestAds()` hiện có - fast path cho consent phiên trước/geography NOT_REQUIRED), và
+     * mỗi lần trạng thái đổi sau đó. Core mặc định deny (fail-safe) tới khi seed này chạy - không
+     * seed đồng bộ nghĩa là app không bao giờ init được SDK/load được ads. */
     fun createConsentManager(
         context: Context,
         debug: ConsentDebugConfig?,

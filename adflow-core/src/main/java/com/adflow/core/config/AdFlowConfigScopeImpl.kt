@@ -22,7 +22,6 @@ internal class AdFlowConfigScopeImpl : AdFlowConfigScope {
         set(value) { networkOrNull = value }
 
     override var logger: AdFlowLogger = LogcatAdFlowLogger()
-    override var preloadOnFirstForeground: Boolean = true
 
     var showIntervalConfig: ShowIntervalConfig = ShowIntervalConfig()
         private set
