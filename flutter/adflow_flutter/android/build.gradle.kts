@@ -18,9 +18,6 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // TEMP local-dev override: point to `./gradlew publishToMavenLocal` output from
-        // adflow-android instead of the JitPack tag below. Revert before committing.
-        mavenLocal()
         // adflow-core/adflow-admob được publish qua JitPack (xem RELEASING.md ở root repo) -
         // groupId khi build qua JitPack luôn là com.github.<owner>.<repo>, khác groupId nội bộ
         // "com.adflow" cấu hình trong build.gradle.kts của 2 module đó.
@@ -79,11 +76,8 @@ kotlin {
 }
 
 dependencies {
-    // TEMP local-dev override (see mavenLocal() above) - was:
-    // api("com.github.wzlibs.adflow:core:v1.0.0-alpha03")
-    // api("com.github.wzlibs.adflow:admob:v1.0.0-alpha03")
-    api("com.adflow:core:1.0.0-alpha03")
-    api("com.adflow:admob:1.0.0-alpha03")
+    api("com.github.wzlibs.adflow:core:v1.0.0-alpha04")
+    api("com.github.wzlibs.adflow:admob:v1.0.0-alpha04")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
