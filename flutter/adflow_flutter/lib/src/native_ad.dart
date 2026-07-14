@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -27,7 +29,7 @@ class AdFlowNativeAd {
   Future<void> setEnabled(bool enabled) => _hostApi.setEnabled(placementId, enabled);
 }
 
-class AdFlowNative extends StatelessWidget {
+class AdFlowNative extends StatefulWidget {
   const AdFlowNative(
     this.placementId, {
     super.key,
@@ -59,28 +61,50 @@ class AdFlowNative extends StatelessWidget {
   final void Function(AdFlowError error)? onError;
 
   @override
+  State<AdFlowNative> createState() => _AdFlowNativeState();
+}
+
+class _AdFlowNativeState extends State<AdFlowNative> {
+  late AdFlowNativeAd _ad;
+
+  @override
+  void initState() {
+    super.initState();
+    _ad = AdFlowNativeAd(widget.placementId);
+    // Cùng lý do với AdFlowBanner - xem KDoc/comment ở đó.
+    unawaited(_ad.load());
+  }
+
+  @override
+  void didUpdateWidget(AdFlowNative oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.placementId == widget.placementId) return;
+    _ad = AdFlowNativeAd(widget.placementId);
+    unawaited(_ad.load());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final ad = AdFlowNativeAd(placementId);
     return AdStateEffects(
-      state: ad.state,
-      onLoading: onLoading,
-      onLoaded: onLoaded,
-      onError: onError,
+      state: _ad.state,
+      onLoading: widget.onLoading,
+      onLoaded: widget.onLoaded,
+      onError: widget.onError,
       builder: (context, state) {
         if (state case AdFailed(:final error)) {
-          return failed?.call(context, error) ?? const SizedBox.shrink();
+          return widget.failed?.call(context, error) ?? const SizedBox.shrink();
         }
         if (state is! AdLoaded) {
-          return loading?.call(context) ?? const SizedBox.shrink();
+          return widget.loading?.call(context) ?? const SizedBox.shrink();
         }
         return SizedBox(
-          height: height,
+          height: widget.height,
           width: double.infinity,
           child: AndroidView(
             viewType: _nativeViewType,
             creationParams: {
-              'placementId': placementId,
-              if (rendererId != null) 'rendererId': rendererId,
+              'placementId': widget.placementId,
+              if (widget.rendererId != null) 'rendererId': widget.rendererId,
             },
             creationParamsCodec: const StandardMessageCodec(),
           ),

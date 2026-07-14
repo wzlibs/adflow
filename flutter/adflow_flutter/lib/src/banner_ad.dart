@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -25,7 +27,7 @@ class AdFlowBannerAd {
   Future<void> setEnabled(bool enabled) => _hostApi.setEnabled(placementId, enabled);
 }
 
-class AdFlowBanner extends StatelessWidget {
+class AdFlowBanner extends StatefulWidget {
   const AdFlowBanner(
     this.placementId, {
     super.key,
@@ -55,25 +57,49 @@ class AdFlowBanner extends StatelessWidget {
   final void Function(AdFlowError error)? onError;
 
   @override
+  State<AdFlowBanner> createState() => _AdFlowBannerState();
+}
+
+class _AdFlowBannerState extends State<AdFlowBanner> {
+  late AdFlowBannerAd _ad;
+
+  @override
+  void initState() {
+    super.initState();
+    _ad = AdFlowBannerAd(widget.placementId);
+    // AndroidView (nơi duy nhất gọi native load() qua AdFlowBannerView.start()) chỉ được build khi
+    // state đã Loaded - nếu không tự gọi load() ở đây, placement không bao giờ rời khỏi AdIdle
+    // (không còn auto-load lúc AdFlow.initialize() nữa).
+    unawaited(_ad.load());
+  }
+
+  @override
+  void didUpdateWidget(AdFlowBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.placementId == widget.placementId) return;
+    _ad = AdFlowBannerAd(widget.placementId);
+    unawaited(_ad.load());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final ad = AdFlowBannerAd(placementId);
     return AdStateEffects(
-      state: ad.state,
-      onLoading: onLoading,
-      onLoaded: onLoaded,
-      onError: onError,
+      state: _ad.state,
+      onLoading: widget.onLoading,
+      onLoaded: widget.onLoaded,
+      onError: widget.onError,
       builder: (context, state) {
         if (state case AdFailed(:final error)) {
-          return failed?.call(context, error) ?? const SizedBox.shrink();
+          return widget.failed?.call(context, error) ?? const SizedBox.shrink();
         }
         if (state is! AdLoaded) {
-          return loading?.call(context) ?? const SizedBox.shrink();
+          return widget.loading?.call(context) ?? const SizedBox.shrink();
         }
         return SizedBox(
-          height: height,
+          height: widget.height,
           child: AndroidView(
             viewType: _bannerViewType,
-            creationParams: {'placementId': placementId},
+            creationParams: {'placementId': widget.placementId},
             creationParamsCodec: const StandardMessageCodec(),
           ),
         );

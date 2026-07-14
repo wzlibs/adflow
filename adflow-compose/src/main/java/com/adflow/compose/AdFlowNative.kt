@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -15,7 +16,8 @@ import com.adflow.core.nativead.AdFlowNativeAdView
 import com.adflow.core.nativead.NativeAdRenderer
 
 /** Composable slot cho 1 native placement - cùng triết lý với [AdFlowBanner]. [renderer] = null
- * dùng renderer mặc định khai báo cho placement trong DSL (`native(id) { renderer = ... }`). */
+ * dùng renderer mặc định khai báo cho placement trong DSL (`native(id) { renderer = ... }`).
+ * [LaunchedEffect] tự gọi `load()` cùng lý do với [AdFlowBanner] - xem KDoc ở đó. */
 @Composable
 fun AdFlowNative(
     placementId: String,
@@ -24,7 +26,9 @@ fun AdFlowNative(
     loading: @Composable BoxScope.() -> Unit = {},
     failed: @Composable BoxScope.(error: AdFlowError) -> Unit = {},
 ) {
-    val state by AdFlow.native(placementId).state.collectAsStateWithLifecycle()
+    val controller = AdFlow.native(placementId)
+    LaunchedEffect(placementId) { controller.load() }
+    val state by controller.state.collectAsStateWithLifecycle()
 
     Box(modifier = modifier) {
         when (val current = state) {

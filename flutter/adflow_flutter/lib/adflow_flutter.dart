@@ -1,6 +1,7 @@
 export 'src/ad_state.dart';
 export 'src/app_open_ad.dart';
 export 'src/banner_ad.dart';
+export 'src/collapsible_native_ad.dart';
 export 'src/core.dart';
 export 'src/interstitial_ad.dart';
 export 'src/native_ad.dart';

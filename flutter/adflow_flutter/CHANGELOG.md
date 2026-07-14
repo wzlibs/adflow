@@ -1,5 +1,8 @@
 ## 2.0.0
 
+* Added `AdFlowCollapsibleNative` - shows a native ad with a close button that switches the same
+  slot to a banner ad (also triggered automatically if the native ad fails to load), composing
+  `AdFlowNative`/`AdFlowBanner` directly with no separate platform view.
 * **BREAKING**: removed the global `AdFlow.setAdsEnabled(bool)`. Restored the v1 per-placement
   `setEnabled(bool)` instead, now on every ad handle
   (`AdFlowInterstitialAd`/`AdFlowAppOpenAd`/`AdFlowRewardedAd`/`AdFlowBannerAd`/`AdFlowNativeAd`) -

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -18,6 +19,10 @@ import com.adflow.core.banner.AdFlowBannerView
  * chuyển giữa [loading]/[failed]/ad thật: mỗi lần state đổi, Compose recompose slot tương ứng;
  * riêng nhánh ad thật dùng [AdFlowBannerView] (đã tự quản lý attach/detach/lease) nên
  * `AndroidView` chỉ tạo view 1 lần, không cần tái tạo thủ công.
+ *
+ * [AndroidView] (nơi duy nhất gọi `load()`, qua `AdFlowBannerView.start()`) chỉ được tạo khi state
+ * đã là [AdState.Loaded] - nếu không có [LaunchedEffect] tự gọi `load()` ở đây, placement không
+ * bao giờ rời khỏi [AdState.Idle] (không còn auto-load lúc `AdFlow.initialize()` nữa).
  */
 @Composable
 fun AdFlowBanner(
@@ -26,7 +31,9 @@ fun AdFlowBanner(
     loading: @Composable BoxScope.() -> Unit = {},
     failed: @Composable BoxScope.(error: AdFlowError) -> Unit = {},
 ) {
-    val state by AdFlow.banner(placementId).state.collectAsStateWithLifecycle()
+    val controller = AdFlow.banner(placementId)
+    LaunchedEffect(placementId) { controller.load() }
+    val state by controller.state.collectAsStateWithLifecycle()
 
     Box(modifier = modifier) {
         when (val current = state) {

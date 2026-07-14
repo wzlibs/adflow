@@ -162,6 +162,27 @@ AdFlowNative(
 `onLoading` covers both "not yet requested" and "a load is in flight" (matches what the `loading`
 builder shows). Same three callbacks are available on `AdFlowBanner`.
 
+## Collapsible native → banner
+
+`AdFlowCollapsibleNative` shows a native ad with a close button; tapping it (or the native ad
+failing to load) switches the same slot to a banner ad instead of leaving it empty:
+
+```dart
+AdFlowCollapsibleNative(
+  nativePlacementId: 'home_native',
+  bannerPlacementId: 'home_banner',
+  onCollapse: (reason) => log('collapsed: $reason'),
+)
+```
+
+It composes `AdFlowNative`/`AdFlowBanner` directly - no separate platform view. Once native loads,
+the banner is preloaded in the background after `bannerPreloadDelay` (default 2s) so it's ready
+the moment the user taps close, without a visible loading gap. `nativeLoading`/`nativeFailed`/
+`bannerLoading`/`bannerFailed` and their `onNative*`/`onBanner*` side-effect counterparts mirror
+`AdFlowNative`/`AdFlowBanner`'s `loading`/`failed`/`onLoading`/`onLoaded`/`onError`, scoped to
+whichever ad is currently active. `collapseIcon` overrides the default close affordance; the
+package has no Material/Cupertino dependency, so the default is drawn with plain widgets.
+
 ## Enabling and disabling placements, and consent
 
 ```dart
