@@ -35,12 +35,20 @@ Hệ quả ở trên đúng cho Interstitial/Rewarded (app vốn đã tự viế
 
 Sửa: `AppOpenForegroundObserver.showIfPossible()` giờ tự gọi `appOpen.load()` khi `!canShow` (bất kể lý do gì - showRule/interval/slot bận đều vô hại vì `ensureLoaded()` tự no-op nếu đã có ad sẵn sàng), thay vì chỉ đứng nhìn. Placement `autoShowOnForeground` tự lo trọn cả load lẫn show, đúng nghĩa "auto".
 
+## Cập nhật 2026-07-14 (sau): pending-demand cho `.load()` bị chặn bởi consent
+
+Vấn đề phát sinh từ chính thiết kế ở trên: vì lượt load đầu tiên giờ luôn app-driven (`.load()` thủ công), và `AdLoadEngine.passesGates()` chặn thẳng `CONSENT_REQUIRED` rồi return khi consent chưa resolve, nên app gọi `.load()` trước khi CMP form xong (chuyện bình thường vì form là async) làm lượt load đó **biến mất im lặng** - không có cơ chế nào tự gọi lại khi consent resolve xong, trừ khi app tự lắng nghe `onAdBlocked(CONSENT_REQUIRED)` và tự retry. Placement `autoShowOnForeground` không bị ảnh hưởng (tự phục hồi qua `AppOpenForegroundObserver` ở lần foreground kế tiếp), nhưng Interstitial/Rewarded/Banner/Native gọi `.load()` 1 lần từ app code thì không.
+
+Đã sửa bằng cơ chế pending-demand (bản rút gọn của Task 3, `docs/superpowers/plans/2026-07-13-preload-consent-redesign.md`, chỉ theo consent - không có state `networkInitialized` riêng vì quyết định ở trên đã gộp init vào đúng `updateConsent()`):
+- `AdFlowRuntime.onConsentGranted(listener)`: đăng ký listener chạy mỗi lần consent chuyển từ không cho phép sang cho phép (kể cả sau khi đã init - ví dụ revoke rồi re-grant qua privacy options).
+- `AdLoadEngine` tự đăng ký 1 listener như vậy trong `init` block: set `pendingDemand = true` trong `reportBlocked()` khi bị `CONSENT_REQUIRED` (không set cho `RULE_REJECTED` - đó là chính sách app, không phải trạng thái tạm thời); listener flush bằng cách gọi lại `ensureLoaded()` nếu `pendingDemand` đang `true`. Áp dụng cho cả `ensureLoaded()` lẫn `forceReload()` (cùng đi qua `reportBlocked()`) - `forceReload()` bị gate thì flush suy biến thành `ensureLoaded()` thường, không phục hồi ý định "force" ban đầu (chấp nhận được, đã ghi trong Task 3 gốc).
+
 ## Phạm vi KHÔNG đụng tới (để dành cho tăng dần sau)
 
-- Gate từng lượt `.load()` theo "network đã init xong chưa" (cơ chế pending-demand/`readyForAdRequests`, xếp hàng lượt load bị chặn tạm thời rồi tự flush khi điều kiện đủ). Theo tài liệu AdMob, gọi `loadAd()` trước khi `initialize()` hoàn tất vẫn an toàn (SDK tự xếp hàng nội bộ), nên đây không phải lỗ hổng nghiêm trọng, chỉ là chưa tối ưu.
+- Gate từng lượt `.load()` theo "network đã init xong chưa" - không còn ý nghĩa vì không có state `networkInitialized` tách riêng nữa (xem trên); theo tài liệu AdMob, gọi `loadAd()` trước khi `initialize()` hoàn tất vẫn an toàn (SDK tự xếp hàng nội bộ).
 - `preload` áp dụng thêm cho expiry-drop (tự load lại khi ad hết hạn, kể cả Native) - không nằm trong thay đổi này.
 
-Cả 2 điểm trên vẫn thuộc `docs/superpowers/plans/2026-07-13-preload-consent-redesign.md` (giữ nguyên, không sửa) - Task 2/4 của file đó (giả định init cần cả `firstForegroundSeen`) coi như đã bị thay thế trên thực tế bởi quyết định ở đây; các task còn lại (1,3,5-10) của file đó vẫn là việc chưa làm, tách biệt.
+Cả 2 điểm trên vẫn thuộc `docs/superpowers/plans/2026-07-13-preload-consent-redesign.md` (giữ nguyên, không sửa) - Task 2/4 của file đó (giả định init cần cả `firstForegroundSeen`) coi như đã bị thay thế trên thực tế bởi quyết định ở đây; phần pending-demand của Task 3 coi như đã làm (bản rút gọn, xem mục trên); các task còn lại (1,5-10) của file đó vẫn là việc chưa làm, tách biệt.
 
 ## Breaking changes
 
@@ -51,7 +59,8 @@ Cả 2 điểm trên vẫn thuộc `docs/superpowers/plans/2026-07-13-preload-co
 ## File liên quan
 
 - `adflow-admob/src/main/java/com/adflow/admob/consent/AdMobConsentManager.kt` - seed `onConsentChanged` trong `init`.
-- `adflow-core/src/main/java/com/adflow/core/engine/AdFlowRuntime.kt` - `updateConsent()`, `networkInitializer`, guard `networkInitStarted`.
+- `adflow-core/src/main/java/com/adflow/core/engine/AdFlowRuntime.kt` - `updateConsent()`, `networkInitializer`, guard `networkInitStarted`, `onConsentGranted()`.
+- `adflow-core/src/main/java/com/adflow/core/engine/AdLoadEngine.kt` - `pendingDemand`, đăng ký `onConsentGranted` trong `init`, `reportBlocked()`.
 - `adflow-core/src/main/java/com/adflow/core/AdFlow.kt` - wiring trong `initialize()`.
 - `adflow-core/src/main/java/com/adflow/core/config/AdFlowConfigScope.kt` - KDoc `preload` mới, xóa `preloadOnFirstForeground`.
 - `adflow-core/src/main/java/com/adflow/core/fullscreen/AppOpenForegroundObserver.kt` - `showIfPossible()` tự `load()` khi `!canShow`.

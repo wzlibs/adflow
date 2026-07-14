@@ -106,4 +106,51 @@ class AdFlowRuntimeTest {
 
         assertEquals(0, initCount)
     }
+
+    @Test
+    fun `onConsentGranted listener fires on the false-to-true transition`() {
+        val runtime = newRuntime()
+        var grantedCount = 0
+        runtime.onConsentGranted { grantedCount++ }
+
+        runtime.updateConsent(true)
+
+        assertEquals(1, grantedCount)
+    }
+
+    @Test
+    fun `onConsentGranted listener does not fire on updateConsent(false)`() {
+        val runtime = newRuntime()
+        var grantedCount = 0
+        runtime.onConsentGranted { grantedCount++ }
+
+        runtime.updateConsent(false)
+
+        assertEquals(0, grantedCount)
+    }
+
+    @Test
+    fun `onConsentGranted listener does not fire again on repeated updateConsent(true)`() {
+        val runtime = newRuntime()
+        var grantedCount = 0
+        runtime.onConsentGranted { grantedCount++ }
+
+        runtime.updateConsent(true)
+        runtime.updateConsent(true)
+
+        assertEquals(1, grantedCount)
+    }
+
+    @Test
+    fun `onConsentGranted listener fires again on revoke then re-grant`() {
+        val runtime = newRuntime()
+        var grantedCount = 0
+        runtime.onConsentGranted { grantedCount++ }
+
+        runtime.updateConsent(true)
+        runtime.updateConsent(false)
+        runtime.updateConsent(true)
+
+        assertEquals(2, grantedCount)
+    }
 }

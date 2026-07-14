@@ -63,13 +63,13 @@ private class RecordingListener : AdListener {
 
 class AdLoadEngineTest {
 
-    private fun TestScope.newRuntime(): AdFlowRuntime =
+    private fun TestScope.newRuntime(consentGranted: Boolean = true): AdFlowRuntime =
         AdFlowRuntime(
             network = NoOpAdNetwork,
             logger = AdFlowLogger { _, _, _, _ -> },
             scope = this,
             clock = { testScheduler.currentTime }, // đồng bộ với thời gian ảo của TestScope, không dùng wall clock thật
-        ).also { it.updateConsent(true) } // consent mặc định false - seed true để test hiện có (không test consent gating) không bị chặn
+        ).also { if (consentGranted) it.updateConsent(true) } // consent mặc định false - seed true để test hiện có (không test consent gating) không bị chặn
 
     private fun config(
         adUnitIds: List<String> = listOf("unit-a"),
@@ -260,6 +260,127 @@ class AdLoadEngineTest {
         advanceUntilIdle()
         assertSame(adB, engine.peek())
         assertEquals(listOf(adA), dropped)
+    }
+
+    @Test
+    fun `ensureLoaded before consent resolves is blocked with CONSENT_REQUIRED and does not call loadOne`() = runTest {
+        val runtime = newRuntime(consentGranted = false)
+        var loadOneCallCount = 0
+        val engine = AdLoadEngine<FakeAd>(
+            config = config(),
+            loadOne = { loadOneCallCount++; FakeAd() },
+            onDrop = {},
+            runtime = runtime,
+            scope = this,
+        )
+        val listener = RecordingListener()
+        engine.addListener(listener)
+
+        engine.ensureLoaded()
+        advanceUntilIdle()
+
+        assertEquals(0, loadOneCallCount)
+        assertEquals(listOf(BlockReason.CONSENT_REQUIRED), listener.blockedCalls)
+        assertEquals(AdState.Idle, engine.state.value)
+    }
+
+    @Test
+    fun `a load() blocked by CONSENT_REQUIRED auto-runs once consent is granted`() = runTest {
+        val runtime = newRuntime(consentGranted = false)
+        var loadOneCallCount = 0
+        val ad = FakeAd()
+        val engine = AdLoadEngine<FakeAd>(
+            config = config(),
+            loadOne = { loadOneCallCount++; ad },
+            onDrop = {},
+            runtime = runtime,
+            scope = this,
+        )
+
+        // App gọi load() trước khi consent resolve - bị chặn, không mất lượt.
+        engine.ensureLoaded()
+        advanceUntilIdle()
+        assertEquals(0, loadOneCallCount)
+
+        // Consent resolve xong (CMP form) - lượt load bị chặn trước đó tự chạy lại, không cần app
+        // gọi lại .load() lần nữa.
+        runtime.updateConsent(true)
+        advanceUntilIdle()
+
+        assertEquals(1, loadOneCallCount)
+        assertSame(ad, engine.peek())
+    }
+
+    @Test
+    fun `repeated ensureLoaded calls while blocked only flush a single load once consent is granted`() = runTest {
+        val runtime = newRuntime(consentGranted = false)
+        var loadOneCallCount = 0
+        val engine = AdLoadEngine<FakeAd>(
+            config = config(),
+            loadOne = { loadOneCallCount++; FakeAd() },
+            onDrop = {},
+            runtime = runtime,
+            scope = this,
+        )
+
+        engine.ensureLoaded()
+        engine.ensureLoaded()
+        engine.ensureLoaded()
+        advanceUntilIdle()
+
+        runtime.updateConsent(true)
+        advanceUntilIdle()
+
+        assertEquals(1, loadOneCallCount)
+    }
+
+    @Test
+    fun `a forceReload() blocked by CONSENT_REQUIRED also queues and flushes once consent is granted`() = runTest {
+        val runtime = newRuntime(consentGranted = false)
+        var loadOneCallCount = 0
+        val ad = FakeAd()
+        val engine = AdLoadEngine<FakeAd>(
+            config = config(),
+            loadOne = { loadOneCallCount++; ad },
+            onDrop = {},
+            runtime = runtime,
+            scope = this,
+        )
+
+        engine.forceReload()
+        advanceUntilIdle()
+        assertEquals(0, loadOneCallCount)
+
+        runtime.updateConsent(true)
+        advanceUntilIdle()
+
+        assertEquals(1, loadOneCallCount)
+        assertSame(ad, engine.peek())
+    }
+
+    @Test
+    fun `RULE_REJECTED does not queue pending demand - consent granted later does not auto-load`() = runTest {
+        val runtime = newRuntime(consentGranted = true)
+        var loadOneCallCount = 0
+        val engine = AdLoadEngine<FakeAd>(
+            config = config(loadRule = AdRule { false }),
+            loadOne = { loadOneCallCount++; FakeAd() },
+            onDrop = {},
+            runtime = runtime,
+            scope = this,
+        )
+
+        engine.ensureLoaded()
+        advanceUntilIdle()
+        assertEquals(0, loadOneCallCount)
+
+        // Consent đã true từ đầu, "cấp lại" (revoke rồi grant) không được vì loadRule mới là lý do
+        // chặn, không phải consent - không tự load lại.
+        runtime.updateConsent(false)
+        runtime.updateConsent(true)
+        advanceUntilIdle()
+
+        assertEquals(0, loadOneCallCount)
     }
 
     @Test

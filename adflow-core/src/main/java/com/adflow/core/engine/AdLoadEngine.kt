@@ -46,6 +46,21 @@ internal class AdLoadEngine<T : Any>(
     private var loadJob: Job? = null
     private val listeners = mutableSetOf<AdListener>()
 
+    /** true nếu 1 lượt `.load()` đã bị chặn bởi `CONSENT_REQUIRED` và đang chờ consent resolve để
+     * tự chạy lại - xem [reportBlocked] và đăng ký [AdFlowRuntime.onConsentGranted] bên dưới. Không
+     * set cho `RULE_REJECTED`: đó là chính sách app quyết định (`loadWhen`), không phải trạng thái
+     * tạm thời nên không tự retry khi consent đổi. */
+    private var pendingDemand = false
+
+    init {
+        runtime.onConsentGranted {
+            if (pendingDemand) {
+                pendingDemand = false
+                ensureLoaded()
+            }
+        }
+    }
+
     /** true nếu có ad cache và (không có expiry hoặc chưa quá hạn). */
     val isReady: Boolean
         get() {
@@ -100,6 +115,7 @@ internal class AdLoadEngine<T : Any>(
     }
 
     private fun reportBlocked(reason: BlockReason) {
+        if (reason == BlockReason.CONSENT_REQUIRED) pendingDemand = true
         logger.log(config.placementId, adType, AdFlowEvent.SHOW_BLOCKED, reason.name)
         listeners.forEach { it.onAdBlocked(reason) }
     }

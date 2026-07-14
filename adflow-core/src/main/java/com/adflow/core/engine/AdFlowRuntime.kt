@@ -33,13 +33,29 @@ internal class AdFlowRuntime(
     var networkInitializer: (() -> Unit)? = null
     private var networkInitStarted = false
 
+    /** [AdLoadEngine] tự đăng ký ở đây để biết lúc nào nên flush 1 lượt `.load()` đã bị chặn tạm
+     * thời bởi `CONSENT_REQUIRED` - xem [updateConsent]. Sống cùng vòng đời runtime, không cần
+     * gỡ đăng ký (engine cũng sống cùng vòng đời đó). */
+    private val consentGrantedListeners = mutableListOf<() -> Unit>()
+
+    fun onConsentGranted(listener: () -> Unit) {
+        consentGrantedListeners += listener
+    }
+
     /** Cập nhật trạng thái consent; nếu vừa được phép và chưa init lần nào, kích [networkInitializer]
-     * đúng 1 lần (không phụ thuộc foreground - xem docs/features/2026-07-14-ad-network-init-consent-gate.md). */
+     * đúng 1 lần (không phụ thuộc foreground - xem docs/features/2026-07-14-ad-network-init-consent-gate.md).
+     * Mỗi lần chuyển từ không cho phép sang cho phép (kể cả sau khi đã init, ví dụ revoke rồi
+     * re-grant qua privacy options form) đều báo [consentGrantedListeners] để các lượt `.load()` bị
+     * chặn tạm thời tự chạy lại - xem `AdLoadEngine.ensureLoaded()`. */
     fun updateConsent(allows: Boolean) {
+        val wasAllowed = consentAllowsAdRequests
         consentAllowsAdRequests = allows
         if (allows && !networkInitStarted) {
             networkInitStarted = true
             networkInitializer?.invoke()
+        }
+        if (allows && !wasAllowed) {
+            consentGrantedListeners.toList().forEach { it() }
         }
     }
 
