@@ -1,3 +1,23 @@
+## 2.1.0
+
+* Bump the underlying `adflow-core`/`adflow-admob` dependency to `v1.0.0-alpha04`.
+* SDK init (`MobileAds.initialize()`) now depends only on consent (`canRequestAds()`), no longer
+  waits for first-foreground - can run as early as `Application.onCreate()` if consent already
+  resolved from a previous session.
+* **Behavior change**: `preload = true` no longer auto-loads a placement during `AdFlow.initialize()`.
+  The first `load()` for Interstitial/Rewarded must now always be app-driven; Banner/Native are
+  unaffected (still self-load when their view attaches). `preload` still governs auto-loading the
+  *next* ad after the current one is consumed (show/`release()`) - that part is unchanged.
+  `autoShowOnForeground` (App Open) is unaffected end-to-end - it now also triggers its own
+  `load()` when not ready, so it keeps working with no app-side change.
+* Fix: `FullScreenAd.awaitReady()` (Interstitial/App Open/Rewarded) now triggers its own `load()`
+  like the Dart-side contract already implied, instead of only waiting for an already-in-flight
+  load. Previously, calling `awaitReady()` on a placement with `preload = false` (or before
+  anything else had loaded it) would hang until timeout since nothing was requesting the ad.
+* Fix: a `.load()` call blocked by `CONSENT_REQUIRED` (e.g. called before the UMP form resolves)
+  is no longer silently dropped - it's now retried automatically once consent is granted, instead
+  of requiring the app to listen for `onError`/blocked callbacks and retry manually.
+
 ## 2.0.0
 
 * Added `AdFlowCollapsibleNative` - shows a native ad with a close button that switches the same
