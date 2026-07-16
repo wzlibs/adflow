@@ -777,6 +777,29 @@ class AdFlowHostApi {
     ;
   }
 
+  /// Đổi gap tối thiểu giữa Interstitial/App Open sau khi [initialize] đã chạy - có hiệu lực ngay
+  /// từ lượt canShow()/show() kế tiếp, không cần gọi lại initialize() (vốn no-op từ lần 2). Dùng khi
+  /// app lấy giá trị gap từ config phía server và giá trị đó đổi sau khi app đã init xong. Đây là
+  /// khái niệm toàn app (giống showIntervalConfig lúc initialize()) nên gộp vào đây thay vì AdHostApi
+  /// (nơi setEnabled per-placement sống).
+  Future<void> updateShowIntervalConfig(PShowIntervalConfig config) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.adflow_flutter.AdFlowHostApi.updateShowIntervalConfig$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[config]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
   Future<PConsentStatus> getConsentStatus() async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.adflow_flutter.AdFlowHostApi.getConsentStatus$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(

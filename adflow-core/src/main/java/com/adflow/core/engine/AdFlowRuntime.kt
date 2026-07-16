@@ -59,6 +59,9 @@ internal class AdFlowRuntime(
         }
     }
 
+    /** Đổi gap tối thiểu giữa Interstitial/App Open sau khi runtime đã chạy - xem [ShowIntervalPolicy.updateConfig]. */
+    fun updateShowIntervalConfig(config: ShowIntervalConfig) = showIntervalPolicy.updateConfig(config)
+
     private val revenueLoggers = mutableListOf<RevenueLogger>()
 
     fun addRevenueLogger(logger: RevenueLogger) {

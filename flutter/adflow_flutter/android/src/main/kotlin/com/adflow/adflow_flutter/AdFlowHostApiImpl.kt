@@ -114,6 +114,15 @@ class AdFlowHostApiImpl(
         subscribeStates(placements)
     }
 
+    override fun updateShowIntervalConfig(config: PShowIntervalConfig) {
+        AdFlow.updateShowIntervals {
+            interstitialAfterInterstitial = config.interstitialAfterInterstitialMs.milliseconds
+            appOpenAfterAppOpen = config.appOpenAfterAppOpenMs.milliseconds
+            interstitialAfterAppOpen = config.interstitialAfterAppOpenMs.milliseconds
+            appOpenAfterInterstitial = config.appOpenAfterInterstitialMs.milliseconds
+        }
+    }
+
     private fun applyBase(scope: BasePlacementScope, config: PPlacementConfig) {
         scope.adUnits(*config.adUnitIds.toTypedArray())
         scope.preload = config.preload

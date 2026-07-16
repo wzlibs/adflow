@@ -184,7 +184,9 @@ private class NativePlacementScopeImpl : NativePlacementScope {
     )
 }
 
-private class ShowIntervalScopeImpl : ShowIntervalScope {
+/** internal (không `private`) để [com.adflow.core.AdFlow.updateShowIntervals] tái dùng logic build
+ * [ShowIntervalConfig] từ [ShowIntervalScope] thay vì viết lại. */
+internal class ShowIntervalScopeImpl : ShowIntervalScope {
     private val defaults = ShowIntervalConfig()
     override var interstitialAfterInterstitial: Duration = defaults.interstitialAfterInterstitialMs.milliseconds
     override var appOpenAfterAppOpen: Duration = defaults.appOpenAfterAppOpenMs.milliseconds

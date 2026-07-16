@@ -24,6 +24,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /** Fake [AdNetwork] không bao giờ thực sự load gì - chỉ đủ để [AdFlow.initialize] chạy hết mà
  * không đụng SDK Android thật, phục vụ test cấu trúc DSL/registry. */
@@ -232,6 +234,21 @@ class AdFlowTest {
         fakeNetwork.capturedOnConsentChanged?.invoke(true)
 
         assertEquals(1, fakeNetwork.initializeCallCount)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `updateShowIntervals before initialize throws a clear error`() {
+        AdFlow.updateShowIntervals { interstitialAfterInterstitial = 1.minutes }
+    }
+
+    @Test
+    fun `updateShowIntervals after initialize does not throw`() {
+        AdFlow.initialize(RuntimeEnvironment.getApplication()) {
+            network = FakeAdNetwork
+            interstitial("inter") { adUnits("u1") }
+        }
+
+        AdFlow.updateShowIntervals { interstitialAfterInterstitial = 5.seconds }
     }
 
     @Test

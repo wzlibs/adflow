@@ -9,11 +9,17 @@ import com.adflow.core.config.ShowIntervalConfig
  * chung; [AdFlowRuntime] sở hữu đúng 1 instance cho cả process.
  */
 internal class ShowIntervalPolicy(
-    private val config: ShowIntervalConfig,
+    private var config: ShowIntervalConfig,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private var lastInterstitialDismissedAt: Long? = null
     private var lastAppOpenDismissedAt: Long? = null
+
+    /** Đổi gap tối thiểu áp dụng cho các lượt [canShow] kế tiếp - không đụng tới
+     * [lastInterstitialDismissedAt]/[lastAppOpenDismissedAt] nên cooldown đang đếm dở không bị mất. */
+    fun updateConfig(newConfig: ShowIntervalConfig) {
+        config = newConfig
+    }
 
     fun canShow(type: AdType): Boolean {
         val now = clock()

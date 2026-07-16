@@ -835,6 +835,14 @@ interface AdFlowHostApi {
    * [AdFlowFlutterApi.onRevenuePaid]. Gọi lại nhiều lần là no-op (idempotent).
    */
   fun addRevenueLogger()
+  /**
+   * Đổi gap tối thiểu giữa Interstitial/App Open sau khi [initialize] đã chạy - có hiệu lực ngay
+   * từ lượt canShow()/show() kế tiếp, không cần gọi lại initialize() (vốn no-op từ lần 2). Dùng khi
+   * app lấy giá trị gap từ config phía server và giá trị đó đổi sau khi app đã init xong. Đây là
+   * khái niệm toàn app (giống showIntervalConfig lúc initialize()) nên gộp vào đây thay vì AdHostApi
+   * (nơi setEnabled per-placement sống).
+   */
+  fun updateShowIntervalConfig(config: PShowIntervalConfig)
   fun getConsentStatus(): PConsentStatus
   fun getPrivacyOptionsRequirement(): PPrivacyOptionsRequirement
   fun canRequestAds(): Boolean
@@ -886,6 +894,24 @@ interface AdFlowHostApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               api.addRevenueLogger()
+              listOf(null)
+            } catch (exception: Throwable) {
+              AdflowApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.adflow_flutter.AdFlowHostApi.updateShowIntervalConfig$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val configArg = args[0] as PShowIntervalConfig
+            val wrapped: List<Any?> = try {
+              api.updateShowIntervalConfig(configArg)
               listOf(null)
             } catch (exception: Throwable) {
               AdflowApiPigeonUtils.wrapError(exception)

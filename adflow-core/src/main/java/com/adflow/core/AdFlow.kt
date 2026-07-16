@@ -7,6 +7,8 @@ import com.adflow.core.banner.BannerAdController
 import com.adflow.core.banner.BannerAdControllerImpl
 import com.adflow.core.config.AdFlowConfigScope
 import com.adflow.core.config.AdFlowConfigScopeImpl
+import com.adflow.core.config.ShowIntervalScope
+import com.adflow.core.config.ShowIntervalScopeImpl
 import com.adflow.core.consent.ConsentManager
 import com.adflow.core.engine.AdFlowRuntime
 import com.adflow.core.engine.PlacementRegistry
@@ -117,6 +119,15 @@ object AdFlow {
      * tạo khác ngoài ads (ví dụ init 1 SDK đo lường khác) mà app muốn gate theo cùng quy tắc. */
     fun onFirstForeground(action: () -> Unit) {
         runtimeOrThrow().foregroundGate.runOnFirstForeground(action)
+    }
+
+    /** Đổi gap tối thiểu giữa Interstitial/App Open sau khi [initialize] đã chạy - có hiệu lực ngay
+     * từ lượt `canShow()` kế tiếp, không cần gọi lại [initialize] (vốn no-op từ lần 2). Dùng khi app
+     * lấy giá trị gap từ config phía server và giá trị đó đổi sau khi app đã init xong. */
+    fun updateShowIntervals(configure: ShowIntervalScope.() -> Unit) {
+        val scope = ShowIntervalScopeImpl()
+        scope.configure()
+        runtimeOrThrow().updateShowIntervalConfig(scope.build())
     }
 
     fun interstitial(placementId: String): InterstitialAd = registryOrThrow().get(placementId)

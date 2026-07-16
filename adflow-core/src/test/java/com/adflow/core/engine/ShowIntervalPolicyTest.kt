@@ -52,4 +52,18 @@ class ShowIntervalPolicyTest {
         assertTrue(policy.canShow(AdType.NATIVE))
         assertTrue(policy.canShow(AdType.BANNER))
     }
+
+    @Test
+    fun `updateConfig takes effect immediately without resetting in-flight cooldown`() {
+        var now = 0L
+        val policy = ShowIntervalPolicy(ShowIntervalConfig(interstitialAfterInterstitialMs = 30_000), clock = { now })
+
+        policy.recordDismissed(AdType.INTERSTITIAL)
+        now = 2_000
+        assertFalse(policy.canShow(AdType.INTERSTITIAL))
+
+        // Dữ liệu remote mới về giữa chừng: gap rút xuống còn 2s - không cần khởi tạo lại policy.
+        policy.updateConfig(ShowIntervalConfig(interstitialAfterInterstitialMs = 2_000))
+        assertTrue(policy.canShow(AdType.INTERSTITIAL))
+    }
 }

@@ -35,6 +35,12 @@ class AdFlow {
     await _hostApi.addRevenueLogger();
   }
 
+  /// Đổi gap tối thiểu giữa Interstitial/App Open sau khi [initialize] đã chạy - có hiệu lực ngay
+  /// từ lượt canShow()/show() kế tiếp, không cần [initialize] lại (vốn no-op từ lần 2). Dùng khi
+  /// app lấy giá trị gap từ config phía server và giá trị đó đổi sau khi app đã init xong.
+  static Future<void> updateShowIntervalConfig(ShowIntervalConfig config) =>
+      _hostApi.updateShowIntervalConfig(config.toPigeon());
+
   static bool get isShowingFullScreenAd =>
       AdFlowDispatcher.instance.isShowingFullScreenAd;
 
