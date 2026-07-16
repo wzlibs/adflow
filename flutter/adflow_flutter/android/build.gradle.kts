@@ -76,8 +76,8 @@ kotlin {
 }
 
 dependencies {
-    api("com.github.wzlibs.adflow:core:v1.0.0-alpha04")
-    api("com.github.wzlibs.adflow:admob:v1.0.0-alpha04")
+    api("com.github.wzlibs.adflow:core:v1.0.0-alpha05")
+    api("com.github.wzlibs.adflow:admob:v1.0.0-alpha05")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
