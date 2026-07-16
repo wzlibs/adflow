@@ -1,3 +1,11 @@
+## 2.2.0
+
+* Bump the underlying `adflow-core`/`adflow-admob` dependency to `v1.0.0-alpha05`.
+* Added `AdFlow.updateShowIntervalConfig()` - lets the app change the minimum gap between
+  Interstitial/App Open after `AdFlow.initialize()` has already run (e.g. when the value comes
+  from the app's own remote config and changes after init). Takes effect immediately on the next
+  `canShow()`/`show()` check; does not reset any cooldown already in progress.
+
 ## 2.1.0
 
 * Bump the underlying `adflow-core`/`adflow-admob` dependency to `v1.0.0-alpha04`.
